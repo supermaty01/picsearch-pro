@@ -4,12 +4,12 @@ The project's core thesis: **every layer must prove its value with metrics**. Th
 
 ## 1. Strategies
 
-| Strategy | Pipeline | Implementation detail |
-|---|---|---|
-| **A** | Vector search only | `hybrid_search(keyword_weight => 0)` — same SQL function, one code path |
-| **B** | Hybrid (vector + FTS, RRF) | `hybrid_search` with default weights |
-| **C** | Hybrid + cross-encoder rerank | B → `bge-reranker-base` over top 15 |
-| **D** | Agent + hybrid + rerank (full) | Orchestrator routes first, then C |
+| Strategy | Pipeline                       | Implementation detail                                                   |
+| -------- | ------------------------------ | ----------------------------------------------------------------------- |
+| **A**    | Vector search only             | `hybrid_search(keyword_weight => 0)` — same SQL function, one code path |
+| **B**    | Hybrid (vector + FTS, RRF)     | `hybrid_search` with default weights                                    |
+| **C**    | Hybrid + cross-encoder rerank  | B → `bge-reranker-base` over top 15                                     |
+| **D**    | Agent + hybrid + rerank (full) | Orchestrator routes first, then C                                       |
 
 **C vs D is the headline comparison**: it isolates the agent's contribution on ambiguous/noisy/multi-concept queries — concrete evidence the agentic layer adds measurable value.
 
@@ -27,16 +27,37 @@ Computed per strategy, overall and per query category.
 ```jsonc
 {
   "queries": [
-    { "id": "q01", "category": "direct",        "query": "canal with medieval timber-framed houses", "expectedImageIds": ["colmar-canal"] },
-    { "id": "q02", "category": "noisy",         "query": "that pic i took in frnace last summr",     "expectedImageIds": ["colmar-canal"] },
-    { "id": "q03", "category": "multi-concept", "query": "beach sunset but also gothic architecture", "expectedImageIds": ["beach-sunset", "gothic-cathedral"] },
-    { "id": "q04", "category": "ambiguous",     "query": "something nice from vacation",             "expectedImageIds": ["*"], "expectClarification": true }
+    {
+      "id": "q01",
+      "category": "direct",
+      "query": "canal with medieval timber-framed houses",
+      "expectedImageIds": ["colmar-canal"],
+    },
+    {
+      "id": "q02",
+      "category": "noisy",
+      "query": "that pic i took in frnace last summr",
+      "expectedImageIds": ["colmar-canal"],
+    },
+    {
+      "id": "q03",
+      "category": "multi-concept",
+      "query": "beach sunset but also gothic architecture",
+      "expectedImageIds": ["beach-sunset", "gothic-cathedral"],
+    },
+    {
+      "id": "q04",
+      "category": "ambiguous",
+      "query": "something nice from vacation",
+      "expectedImageIds": ["*"],
+      "expectClarification": true,
+    },
     // ... ≥ 6 more, balanced across the 4 categories
-  ]
+  ],
 }
 ```
 
-Rules for the set: every agent route must be exercised by ≥ 2 queries; `expectedImageIds` reference stable slugs mapped at seed time; ambiguous queries score the *clarification behavior* for strategy D (a clarification counts as correct; strategies A–C are scored on whatever they return, which is the point).
+Rules for the set: every agent route must be exercised by ≥ 2 queries; `expectedImageIds` reference stable slugs mapped at seed time; ambiguous queries score the _clarification behavior_ for strategy D (a clarification counts as correct; strategies A–C are scored on whatever they return, which is the point).
 
 ## 4. Execution model
 

@@ -1,6 +1,6 @@
 # Orchestrator Agent Design
 
-The differentiator vs. a static RAG pipeline: queries never hit `hybrid_search` directly. A lightweight LLM with **function calling** decides *how* to resolve each query first (the 2026 "Adaptive RAG" routing pattern). The agent is an orchestration layer on top of retrieval — ingestion and `hybrid_search` don't change.
+The differentiator vs. a static RAG pipeline: queries never hit `hybrid_search` directly. A lightweight LLM with **function calling** decides _how_ to resolve each query first (the 2026 "Adaptive RAG" routing pattern). The agent is an orchestration layer on top of retrieval — ingestion and `hybrid_search` don't change.
 
 ## 1. Routes
 
@@ -15,12 +15,12 @@ flowchart TD
     HS --> CE[cross-encoder rerank] --> UI2[Top 5]
 ```
 
-| Route | Trigger | Example | Action |
-|---|---|---|---|
-| `search_direct` | Clear, specific | "canal with medieval timber-framed houses" | Pass through unchanged — zero added overhead |
-| `search_reformulated` | Noisy, typos, vague phrasing but clear intent | "that pic i took in frnace last summr" | Rewrite into a clean, semantically rich query |
-| `search_decomposed` | 2+ independent concepts | "a beach sunset but also gothic architecture" | Split into 2–3 sub-queries, each independently retrievable; merge + dedupe (keep max score per image) |
-| `ask_for_context` | Cannot form a retrievable query | "something nice from vacation" | Return a clarifying question; no DB call |
+| Route                 | Trigger                                       | Example                                       | Action                                                                                                |
+| --------------------- | --------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `search_direct`       | Clear, specific                               | "canal with medieval timber-framed houses"    | Pass through unchanged — zero added overhead                                                          |
+| `search_reformulated` | Noisy, typos, vague phrasing but clear intent | "that pic i took in frnace last summr"        | Rewrite into a clean, semantically rich query                                                         |
+| `search_decomposed`   | 2+ independent concepts                       | "a beach sunset but also gothic architecture" | Split into 2–3 sub-queries, each independently retrievable; merge + dedupe (keep max score per image) |
+| `ask_for_context`     | Cannot form a retrievable query               | "something nice from vacation"                | Return a clarifying question; no DB call                                                              |
 
 ## 2. Tool schemas (function calling)
 
@@ -48,4 +48,4 @@ Instructs the model to: classify the query into one of the four routes using the
 
 ## 5. Telemetry (closes the loop with evaluation)
 
-Every decision logs `agent_action`, `resolved_queries`, `agent_decision_ms`, `tokens_used`, `model_provider` (FR-11). The benchmark's C vs D comparison (06-evaluation.md) then measures whether reformulate/decompose actually lift MRR/Recall versus bypassing the agent — the agent must *earn* its latency.
+Every decision logs `agent_action`, `resolved_queries`, `agent_decision_ms`, `tokens_used`, `model_provider` (FR-11). The benchmark's C vs D comparison (06-evaluation.md) then measures whether reformulate/decompose actually lift MRR/Recall versus bypassing the agent — the agent must _earn_ its latency.

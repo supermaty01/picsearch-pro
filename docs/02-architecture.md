@@ -28,25 +28,25 @@ flowchart TD
 
 ## 2. Components
 
-| Component | Technology | Notes |
-|---|---|---|
-| Frontend | React 19 + Vite 7 + Tailwind CSS v4 | SPA on Cloudflare Pages. Tailwind v4 CSS-first config (`@theme`), no `tailwind.config.js`. TanStack Query for server state. |
-| API | Cloudflare Worker + Hono 4 | Single Worker, routes under `/api/v1`. Zod-validated boundaries via shared schemas. |
-| AI Gateway | Cloudflare AI Gateway | Sits in front of all Workers AI calls: response caching (big win for benchmark re-runs), analytics, rate limiting, retries. Free. |
-| Database | Supabase Postgres + pgvector | HNSW (cosine) + GIN (FTS) indexes; RRF fusion in one SQL function; RLS on. |
-| Storage | Supabase Storage | Public-read bucket, server-side validated uploads. |
-| Shared contracts | `packages/shared` (Zod 4) | One source of truth for API types, `ImageMetadata`, env schema, model IDs. |
+| Component        | Technology                          | Notes                                                                                                                             |
+| ---------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend         | React 19 + Vite 7 + Tailwind CSS v4 | SPA on Cloudflare Pages. Tailwind v4 CSS-first config (`@theme`), no `tailwind.config.js`. TanStack Query for server state.       |
+| API              | Cloudflare Worker + Hono 4          | Single Worker, routes under `/api/v1`. Zod-validated boundaries via shared schemas.                                               |
+| AI Gateway       | Cloudflare AI Gateway               | Sits in front of all Workers AI calls: response caching (big win for benchmark re-runs), analytics, rate limiting, retries. Free. |
+| Database         | Supabase Postgres + pgvector        | HNSW (cosine) + GIN (FTS) indexes; RRF fusion in one SQL function; RLS on.                                                        |
+| Storage          | Supabase Storage                    | Public-read bucket, server-side validated uploads.                                                                                |
+| Shared contracts | `packages/shared` (Zod 4)           | One source of truth for API types, `ImageMetadata`, env schema, model IDs.                                                        |
 
 ## 3. Model selection (Workers AI, verified July 2026)
 
 All models run on the Workers AI free tier and are referenced only via `packages/shared/src/models.ts` (NFR-7).
 
-| Role | Model | Rationale |
-|---|---|---|
-| Vision (ingestion) | `@cf/meta/llama-4-scout-17b-16e-instruct` | Natively multimodal MoE, JSON mode for schema-constrained output. Replaces the originally spec'd Llama 3.2 11B Vision (still available as fallback, but older generation). |
-| Embeddings | `@cf/baai/bge-small-en-v1.5` | 384-dim → small index, fast HNSW, low storage. Battle-tested for English retrieval. `EMBEDDING_DIM = 384` is a shared constant used by schema, SQL and code. |
-| Orchestrator agent | `@cf/zai-org/glm-4.7-flash` | Fast multilingual model with multi-turn tool calling — Cloudflare's own recommended replacement for legacy small models; low decision latency (NFR-2). Fallback: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`. |
-| Reranker | `@cf/baai/bge-reranker-base` | True cross-encoder (query + passage jointly scored). On-platform: no external API key, no extra vendor (ADR-0005). |
+| Role               | Model                                     | Rationale                                                                                                                                                                                                    |
+| ------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Vision (ingestion) | `@cf/meta/llama-4-scout-17b-16e-instruct` | Natively multimodal MoE, JSON mode for schema-constrained output. Replaces the originally spec'd Llama 3.2 11B Vision (still available as fallback, but older generation).                                   |
+| Embeddings         | `@cf/baai/bge-small-en-v1.5`              | 384-dim → small index, fast HNSW, low storage. Battle-tested for English retrieval. `EMBEDDING_DIM = 384` is a shared constant used by schema, SQL and code.                                                 |
+| Orchestrator agent | `@cf/zai-org/glm-4.7-flash`               | Fast multilingual model with multi-turn tool calling — Cloudflare's own recommended replacement for legacy small models; low decision latency (NFR-2). Fallback: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`. |
+| Reranker           | `@cf/baai/bge-reranker-base`              | True cross-encoder (query + passage jointly scored). On-platform: no external API key, no extra vendor (ADR-0005).                                                                                           |
 
 Deprecation hygiene: Cloudflare deprecated 18 legacy models on 2026-05-30 (all Llama-3/3.1 base variants, Mistral v0.1/0.2, etc.). None of the selected models are on that list.
 

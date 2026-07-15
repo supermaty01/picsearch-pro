@@ -24,9 +24,9 @@ Multipart upload (`file`). Validates MIME/size, stores object, runs the ingestio
 {
   "id": "uuid",
   "imageUrl": "https://...",
-  "metadata": { /* ImageMetadata */ },
+  "metadata": {/* ImageMetadata */},
   "denseContext": "Scene: ...",
-  "timings": { "visionMs": 0, "embeddingMs": 0, "totalMs": 0 }
+  "timings": { "visionMs": 0, "embeddingMs": 0, "totalMs": 0 },
 }
 ```
 
@@ -49,15 +49,28 @@ Gallery listing, newest first, cursor pagination. → `200 { items: ImageSummary
 {
   "kind": "results",
   "agent": { "action": "reformulate", "resolvedQueries": ["photo taken in France last summer"] },
-  "results": [ { "id": "uuid", "imageUrl": "...", "denseContext": "...", "score": 0.93, "metadata": { } } ],
-  "telemetry": { "agentDecisionMs": 0, "embeddingMs": 0, "vectorSearchMs": 0, "rerankMs": 0, "executionTimeMs": 0, "rerankSkipped": false }
+  "results": [
+    { "id": "uuid", "imageUrl": "...", "denseContext": "...", "score": 0.93, "metadata": {} },
+  ],
+  "telemetry": {
+    "agentDecisionMs": 0,
+    "embeddingMs": 0,
+    "vectorSearchMs": 0,
+    "rerankMs": 0,
+    "executionTimeMs": 0,
+    "rerankSkipped": false,
+  },
 }
 ```
 
 → `200` (clarification — FR-7 `ask_for_context`):
 
 ```jsonc
-{ "kind": "clarification", "agent": { "action": "ask_context" }, "question": "Beach, mountains, or city?" }
+{
+  "kind": "clarification",
+  "agent": { "action": "ask_context" },
+  "question": "Beach, mountains, or city?",
+}
 ```
 
 The discriminated union (`kind`) is a shared Zod schema; the UI switches on it exhaustively.
