@@ -1,13 +1,14 @@
 import { type ImageMetadata } from '@picsearch/shared';
 import { useId, useState } from 'react';
 
-/** Collapsible JSON inspector for an image's AI metadata (FR-12). */
+/** Collapsible JSON inspector for an image's AI metadata (FR-12), console style. */
 export function MetadataInspector({ metadata }: { metadata: ImageMetadata }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  const entries = Object.entries(metadata);
 
   return (
-    <div className="mt-2 text-xs">
+    <div className="mt-2 font-mono text-[11px]">
       <button
         type="button"
         aria-expanded={open}
@@ -15,17 +16,32 @@ export function MetadataInspector({ metadata }: { metadata: ImageMetadata }) {
         onClick={() => {
           setOpen((o) => !o);
         }}
-        className="font-medium text-brand-700 hover:underline"
+        className="text-accent hover:text-accent-bright"
       >
-        {open ? 'Hide' : 'Show'} AI metadata
+        {open ? '▾' : '▸'} structured_metadata
       </button>
       {open && (
-        <pre
+        <div
           id={panelId}
-          className="mt-1 max-h-64 overflow-auto rounded-md bg-slate-900 p-3 text-[11px] leading-relaxed text-slate-100"
+          className="mt-1 max-h-72 overflow-auto border border-line-2 bg-surface-2 p-3 leading-relaxed"
         >
-          {JSON.stringify(metadata, null, 2)}
-        </pre>
+          <span className="text-faint">{'{'}</span>
+          {entries.map(([key, value]) => (
+            <div key={key} className="pl-4">
+              <span className="text-pos">&quot;{key}&quot;</span>
+              <span className="text-faint">: </span>
+              {Array.isArray(value) ? (
+                <span className="text-route-reformulate">
+                  [{value.map((v) => `"${v}"`).join(', ')}]
+                </span>
+              ) : (
+                <span className="text-accent-bright">&quot;{value}&quot;</span>
+              )}
+              <span className="text-faint">,</span>
+            </div>
+          ))}
+          <span className="text-faint">{'}'}</span>
+        </div>
       )}
     </div>
   );

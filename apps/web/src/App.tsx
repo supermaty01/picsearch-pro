@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { Header, type TabId } from './components/Header.js';
+import { ViewHeading } from './components/ViewHeading.js';
 import { EvaluationView } from './features/evaluation/EvaluationView.js';
 import { GalleryView } from './features/gallery/GalleryView.js';
 import { SearchBar } from './features/search/SearchBar.js';
@@ -9,13 +10,19 @@ import { useSearch } from './features/search/useSearch.js';
 import { TelemetryPanel } from './features/telemetry/TelemetryPanel.js';
 import { ApiError } from './lib/api.js';
 
+const EXAMPLES = [
+  'The glass pyramid at the louvre',
+  'That polis lambo at the airprt',
+  'A beach sunset but also gothic architecture',
+  'Something nice from vacation',
+];
+
 /**
- * Application shell (docs/08). A persistent search bar sits above a tabbed body
- * (Gallery · Evaluation · Telemetry). Search results / clarifications render
- * inline above the active tab.
+ * Application shell (docs/08 mockup). Tabbed console: Search Studio (default),
+ * Gallery, Evaluation Lab, Telemetry — over a dark, grid-lined canvas.
  */
 export function App() {
-  const [tab, setTab] = useState<TabId>('gallery');
+  const [tab, setTab] = useState<TabId>('search');
   const searchMutation = useSearch();
   const [baseQuery, setBaseQuery] = useState('');
 
@@ -38,28 +45,63 @@ export function App() {
   const hasSearchState = response !== undefined || searchMutation.isError;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-display text-slate-900">
+    <div className="grid-bg flex min-h-screen flex-col font-display text-body">
       <Header active={tab} onSelect={setTab} />
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-8">
-        <section className="space-y-4" aria-label="Search">
-          <SearchBar
-            onSearch={runSearch}
-            pending={searchMutation.isPending}
-            onClear={clearSearch}
-            hasResults={hasSearchState}
-          />
-          {searchMutation.error instanceof ApiError && (
-            <p className="text-sm text-rose-600">{searchMutation.error.message}</p>
-          )}
-          {response && <SearchResults response={response} onClarify={clarify} />}
-        </section>
 
-        <section aria-label={tab}>
-          {tab === 'gallery' && <GalleryView />}
-          {tab === 'evaluation' && <EvaluationView />}
-          {tab === 'telemetry' && <TelemetryPanel />}
-        </section>
+      <main className="mx-auto w-full max-w-[1560px] flex-1 px-5 py-6">
+        {tab === 'search' && (
+          <div className="space-y-4">
+            <ViewHeading
+              tag="studio / agentic-console"
+              title="Agentic Retrieval Console"
+              note="Every query is routed by the orchestrator agent before it touches hybrid_search · RRF fusion · cross-encoder rerank"
+            />
+            <SearchBar
+              onSearch={runSearch}
+              pending={searchMutation.isPending}
+              onClear={clearSearch}
+              hasResults={hasSearchState}
+            />
+            {searchMutation.error instanceof ApiError && (
+              <p className="font-mono text-xs text-route-fallback">
+                {searchMutation.error.message}
+              </p>
+            )}
+            {response ? (
+              <SearchResults response={response} onClarify={clarify} />
+            ) : (
+              !searchMutation.isPending && (
+                <div className="border border-line-2 bg-surface p-6">
+                  <p className="font-mono text-xs text-dim">Try one of these →</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {EXAMPLES.map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        onClick={() => {
+                          runSearch(q);
+                        }}
+                        className="border border-line-2 bg-elevated px-3 py-2 font-mono text-xs text-body transition hover:border-accent-dim hover:text-fg-2"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        )}
+
+        {tab === 'gallery' && <GalleryView />}
+        {tab === 'evaluation' && <EvaluationView />}
+        {tab === 'telemetry' && <TelemetryPanel />}
       </main>
+
+      <footer className="flex flex-wrap items-center justify-between gap-2.5 border-t border-line bg-header px-5 py-4 font-mono text-[11px] text-faint">
+        <span>react (vite) + tailwind · cloudflare pages/workers · supabase pgvector</span>
+        <span>bge-small-en-v1.5 · 384-dim · HNSW + GIN · RRF k=60</span>
+      </footer>
     </div>
   );
 }

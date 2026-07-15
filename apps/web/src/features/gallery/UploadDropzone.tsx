@@ -33,7 +33,10 @@ export function UploadDropzone() {
         : null;
 
   return (
-    <div>
+    <div className="border border-line-2 bg-surface">
+      <div className="border-b border-line px-4 py-2.5 font-mono text-[11px] text-dim">
+        ingest.pipeline() · vision → dense_context → embedding → index
+      </div>
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -48,16 +51,16 @@ export function UploadDropzone() {
           const file = e.dataTransfer.files[0];
           if (file) submit(file);
         }}
-        className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-10 text-center transition ${
-          dragging ? 'border-brand-500 bg-brand-50' : 'border-slate-300 bg-white'
+        className={`m-3 flex flex-col items-center justify-center gap-2 border-2 border-dashed px-6 py-10 text-center transition ${
+          dragging ? 'border-accent bg-accent/5' : 'border-line-3'
         }`}
       >
-        <p className="text-sm text-slate-600">Drag an image here, or</p>
+        <p className="font-mono text-xs text-muted">drag an image here, or</p>
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={upload.isPending}
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+          className="border border-accent-dim bg-accent px-4 py-2 font-display text-sm font-bold text-[#05130c] hover:bg-accent-bright disabled:opacity-50"
         >
           Choose file
         </button>
@@ -73,18 +76,18 @@ export function UploadDropzone() {
             e.target.value = '';
           }}
         />
-        <p className="text-xs text-slate-400">JPEG · PNG · WebP · up to 10 MB</p>
+        <p className="font-mono text-[10px] text-dim">JPEG · PNG · WebP · up to 10 MB</p>
       </div>
 
-      <div aria-live="polite" className="mt-2 min-h-6 text-sm">
-        {upload.isPending && <Spinner label="Analyzing & indexing" />}
+      <div aria-live="polite" className="min-h-6 px-4 pb-3 font-mono text-xs">
+        {upload.isPending && <Spinner label="analyzing & indexing" />}
         {(clientError ?? serverError) && (
-          <p className="text-rose-600">{clientError ?? serverError}</p>
+          <p className="text-route-fallback">{clientError ?? serverError}</p>
         )}
         {upload.isSuccess && (
-          <p className="text-emerald-600">
-            Indexed in {upload.data.timings.totalMs} ms (vision {upload.data.timings.visionMs} ms,
-            embedding {upload.data.timings.embeddingMs} ms).
+          <p className="text-pos">
+            indexed in {upload.data.timings.totalMs}ms (vision {upload.data.timings.visionMs}ms ·
+            embedding {upload.data.timings.embeddingMs}ms)
           </p>
         )}
       </div>

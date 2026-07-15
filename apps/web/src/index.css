@@ -1,21 +1,65 @@
 @import 'tailwindcss';
 
+/* Archivo + JetBrains Mono are loaded via <link> in index.html (non-blocking). */
+
 /*
- * Design tokens (Tailwind v4 CSS-first config — no tailwind.config.js).
- * Placeholder palette: replace with tokens extracted from
- * design/PicSearch-Pro.dc.html when the mockup lands (docs/08).
+ * Design tokens extracted from design/PicSearch-Pro.dc.html (docs/08).
+ * Dark "agentic console" theme: near-black canvas, green accent, sharp corners,
+ * thin cell borders, Archivo display + JetBrains Mono for technical labels.
  */
 @theme {
-  --color-brand-50: oklch(0.97 0.02 260);
-  --color-brand-100: oklch(0.94 0.03 260);
-  --color-brand-200: oklch(0.88 0.05 260);
-  --color-brand-500: oklch(0.62 0.19 260);
-  --color-brand-600: oklch(0.55 0.21 260);
-  --color-brand-700: oklch(0.48 0.19 260);
-  --color-brand-900: oklch(0.3 0.12 260);
-  --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --color-bg: #060906;
+  --color-header: #070b08;
+  --color-surface: #0a0f0b;
+  --color-surface-2: #080c09;
+  --color-elevated: #0c130e;
+  --color-line: #17211a;
+  --color-line-2: #1c271f;
+  --color-line-3: #23312a;
+
+  --color-fg: #eef3ef;
+  --color-fg-2: #e4ece6;
+  --color-body: #c8d4cb;
+  --color-muted: #7d8f83;
+  --color-dim: #5a6b5f;
+  --color-faint: #465049;
+
+  --color-accent: #46e08a;
+  --color-accent-dim: #2a8f5c;
+  --color-accent-bright: #7ff0b3;
+  --color-pos: #5ff0a5;
+
+  /* Orchestrator route colors (docs/05). */
+  --color-route-direct: #46e08a;
+  --color-route-reformulate: #e0b345;
+  --color-route-decompose: #a08bff;
+  --color-route-ask: #45c8e0;
+  --color-route-fallback: #e07d5a;
+
+  --font-display: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
 }
 
-/* Tailwind's default neutral palette (slate/*) is used for surfaces/text.
-   Replace the brand ramp above with tokens from design/PicSearch-Pro.dc.html
-   when the mockup lands (docs/08). */
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-accent) 28%, transparent);
+}
+
+/* Faint accent grid on the app canvas (mockup background). */
+@utility grid-bg {
+  background-color: var(--color-bg);
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--color-accent) 2%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--color-accent) 2%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 46px 46px;
+}

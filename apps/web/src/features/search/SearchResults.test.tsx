@@ -6,12 +6,17 @@ import { SearchResults } from './SearchResults.js';
 
 const metadata: ImageMetadata = {
   scene_description: 'A golden beach at sunset with gentle waves.',
+  setting: 'a sandy coastline at dusk',
   objects: ['beach', 'ocean'],
   actions: [],
   mood: 'calm',
   colors: ['gold', 'blue'],
   weather: 'clear',
+  time_of_day: 'sunset',
+  season: 'summer',
   location_type: 'coastal',
+  notable_details: [],
+  photographic_style: 'landscape photo',
   keywords: ['beach', 'sunset'],
 };
 
@@ -42,7 +47,10 @@ describe('SearchResults (discriminated union rendering)', () => {
     expect(screen.getByText('0.912')).toBeDefined();
     // alt text comes from scene_description (NFR-10).
     expect(screen.getByAltText(metadata.scene_description)).toBeDefined();
-    expect(screen.getByText(/Agent: Direct/i)).toBeDefined();
+    // the decision panel echoes the resolved query.
+    expect(screen.getByText('beach sunset')).toBeDefined();
+    // the route label appears in the console (may repeat across panels).
+    expect(screen.getAllByText('DIRECT').length).toBeGreaterThan(0);
   });
 
   it('renders the clarifying question for kind="clarification"', () => {

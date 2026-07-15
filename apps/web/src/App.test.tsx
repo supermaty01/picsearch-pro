@@ -16,7 +16,7 @@ function renderApp() {
 describe('App shell', () => {
   it('renders the brand and a labelled search input', () => {
     renderApp();
-    expect(screen.getByText('PicSearch')).toBeDefined();
+    expect(screen.getByText('semantic image engine')).toBeDefined();
     expect(screen.getByLabelText('Search images')).toBeDefined();
   });
 
