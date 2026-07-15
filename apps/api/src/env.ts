@@ -10,6 +10,10 @@ export interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
   AI_GATEWAY_ID: string;
+  /** Comma-separated allowed browser origins for CORS (Phase 6). Empty = allow all (dev). */
+  ALLOWED_ORIGINS?: string;
+  /** Shared secret enabling deterministic `seed/<slug>` uploads via `pnpm seed` (FR-15). */
+  SEED_KEY?: string;
 }
 
 /**
@@ -21,4 +25,6 @@ export const envSchema = z.object({
   SUPABASE_URL: z.url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   AI_GATEWAY_ID: z.string().min(1),
+  ALLOWED_ORIGINS: z.string().optional(),
+  SEED_KEY: z.string().optional(),
 });
