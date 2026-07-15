@@ -1,0 +1,190 @@
+import {
+  AGENT_TOOL_ARGS,
+  type AgentAction,
+  type AgentToolName,
+  isAgentToolName,
+  MODELS,
+  toAgentAction,
+} from '@picsearch/shared';
+import { z } from 'zod';
+
+import { type Env } from '../env.js';
+import { aiRun } from '../lib/ai.js';
+import { withTimeout } from '../lib/timed.js';
+import { AGENT_SYSTEM_PROMPT } from './prompt.js';
+import { buildAgentTools } from './tools.js';
+
+/** How the agent decided to resolve the query. */
+export type RouteDecision =
+  { kind: 'search'; queries: string[] } | { kind: 'clarification'; question: string };
+
+export interface AgentOutcome {
+  decision: RouteDecision;
+  action: AgentAction;
+  tokensUsed: number | null;
+  ms: number;
+}
+
+/** Decision budget; on timeout we fall back to a direct search (docs/05 §4). */
+const AGENT_TIMEOUT_MS = 3000;
+
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+const agentResponseSchema = z.object({
+  tool_calls: z
+    .array(z.object({ name: z.string(), arguments: z.unknown() }))
+    .optional()
+    .default([]),
+  usage: z.object({ total_tokens: z.number() }).partial().optional(),
+});
+
+/**
+ * Route a query through the orchestrator agent (FR-6, FR-7). Returns the chosen
+ * route; never throws for model misbehavior — a malformed/absent tool call is
+ * retried once, then degrades to `agent_fallback` = direct search with the raw
+ * query. A timeout degrades the same way. Search must never 500 here (AGENTS §4).
+ */
+export async function routeQuery(
+  env: Env,
+  query: string,
+  options: { allowClarification: boolean } = { allowClarification: true },
+): Promise<AgentOutcome> {
+  const start = Date.now();
+  const tools = buildAgentTools(options.allowClarification);
+  const messages: ChatMessage[] = [
+    { role: 'system', content: AGENT_SYSTEM_PROMPT },
+    { role: 'user', content: query },
+  ];
+
+  try {
+    return await withTimeout(
+      () => decide(env, query, messages, tools, start),
+      AGENT_TIMEOUT_MS,
+      () => new Error('agent decision timed out'),
+    );
+  } catch {
+    // Timeout or transport error → degrade to direct search.
+    return fallback(query, start, null);
+  }
+}
+
+async function decide(
+  env: Env,
+  query: string,
+  messages: ChatMessage[],
+  tools: ReturnType<typeof buildAgentTools>,
+  start: number,
+): Promise<AgentOutcome> {
+  const first = await callAgent(env, messages, tools);
+  const firstParse = parseToolCall(first.name, first.args);
+  if (firstParse.ok) {
+    return finalize(firstParse.tool, firstParse.value, query, start, first.tokensUsed);
+  }
+
+  // One retry with the validation error fed back (docs/05 §2).
+  const retryMessages: ChatMessage[] = [
+    ...messages,
+    {
+      role: 'assistant',
+      content: `Invalid tool call: ${firstParse.error}. I will correct it now.`,
+    },
+    { role: 'user', content: 'Your previous tool call was invalid. Call exactly one valid tool.' },
+  ];
+  const second = await callAgent(env, retryMessages, tools);
+  const secondParse = parseToolCall(second.name, second.args);
+  if (secondParse.ok) {
+    return finalize(secondParse.tool, secondParse.value, query, start, second.tokensUsed);
+  }
+
+  return fallback(query, start, second.tokensUsed);
+}
+
+interface RawCall {
+  name: string | null;
+  args: unknown;
+  tokensUsed: number | null;
+}
+
+async function callAgent(
+  env: Env,
+  messages: ChatMessage[],
+  tools: ReturnType<typeof buildAgentTools>,
+): Promise<RawCall> {
+  const raw = await aiRun(env, MODELS.agent, {
+    messages,
+    tools,
+    tool_choice: 'any',
+    temperature: 0.1,
+    max_tokens: 256,
+  });
+  const parsed = agentResponseSchema.safeParse(raw);
+  if (!parsed.success) return { name: null, args: undefined, tokensUsed: null };
+  const call = parsed.data.tool_calls[0];
+  return {
+    name: call?.name ?? null,
+    args: call?.arguments,
+    tokensUsed: parsed.data.usage?.total_tokens ?? null,
+  };
+}
+
+type ParseResult = { ok: true; tool: AgentToolName; value: unknown } | { ok: false; error: string };
+
+function parseToolCall(name: string | null, args: unknown): ParseResult {
+  if (name === null || !isAgentToolName(name)) {
+    return { ok: false, error: `unknown or missing tool "${name ?? '(none)'}"` };
+  }
+  // Arguments may arrive as a JSON string or an object.
+  const coerced = typeof args === 'string' ? safeJsonParse(args) : (args ?? {});
+  const result = AGENT_TOOL_ARGS[name].safeParse(coerced);
+  if (!result.success) {
+    return { ok: false, error: result.error.issues.map((i) => i.message).join('; ') };
+  }
+  return { ok: true, tool: name, value: result.data };
+}
+
+function finalize(
+  tool: AgentToolName,
+  value: unknown,
+  query: string,
+  start: number,
+  tokensUsed: number | null,
+): AgentOutcome {
+  const action = toAgentAction(tool);
+  const ms = Date.now() - start;
+  switch (tool) {
+    case 'search_direct':
+      return { decision: { kind: 'search', queries: [query] }, action, tokensUsed, ms };
+    case 'search_reformulated': {
+      const { reformulatedQuery } = value as { reformulatedQuery: string };
+      return { decision: { kind: 'search', queries: [reformulatedQuery] }, action, tokensUsed, ms };
+    }
+    case 'search_decomposed': {
+      const { subQueries } = value as { subQueries: string[] };
+      return { decision: { kind: 'search', queries: subQueries }, action, tokensUsed, ms };
+    }
+    case 'ask_for_context': {
+      const { question } = value as { question: string };
+      return { decision: { kind: 'clarification', question }, action, tokensUsed, ms };
+    }
+  }
+}
+
+function fallback(query: string, start: number, tokensUsed: number | null): AgentOutcome {
+  return {
+    decision: { kind: 'search', queries: [query] },
+    action: 'agent_fallback',
+    tokensUsed,
+    ms: Date.now() - start,
+  };
+}
+
+function safeJsonParse(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
