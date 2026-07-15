@@ -48,5 +48,16 @@ export default tseslint.config(
     files: ['**/*.{js,mjs,cjs}'],
     ...tseslint.configs.disableTypeChecked,
   },
+  {
+    // CLI scripts: Node runtime, console output is the intended interface.
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: { ...globals.node, fetch: 'readonly', FormData: 'readonly', Blob: 'readonly' },
+    },
+    rules: {
+      'no-console': 'off',
+      'no-undef': 'off',
+    },
+  },
   prettier,
 );

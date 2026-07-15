@@ -18,7 +18,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "seed": "node scripts/seed.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.0",
