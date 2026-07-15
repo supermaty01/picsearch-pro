@@ -198,6 +198,7 @@ function scoreQuery(
   if (query.expectClarification && clarified) {
     return {
       queryId: query.id,
+      queryText: query.query,
       category: query.category,
       recallAt3: 1,
       recallAt5: 1,
@@ -208,6 +209,7 @@ function scoreQuery(
   const m = queryMetrics(rankedSlugs, query.expectedImageIds);
   return {
     queryId: query.id,
+    queryText: query.query,
     category: query.category,
     recallAt3: m.recallAt3,
     recallAt5: m.recallAt5,

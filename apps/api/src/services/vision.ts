@@ -14,19 +14,43 @@ import { VisionValidationError } from '../lib/problem.js';
  * never unvalidated passthrough (AGENTS §4).
  */
 
-const SYSTEM_PROMPT = `You are a meticulous image analyst for a semantic search engine.
-Look at the image and return ONLY a JSON object matching this exact shape:
+const SYSTEM_PROMPT = `You are a meticulous image analyst for a semantic image search engine.
+Your description is the ONLY thing users can search against, so capture as much
+grounded, specific detail as you can see — a rich, thorough description dramatically
+improves retrieval. Never invent details you cannot actually see; be exhaustive
+about what IS there.
+
+Return ONLY a JSON object with exactly these fields:
 {
-  "scene_description": string (1-3 sentences describing the whole scene),
-  "objects": string[] (distinct visible objects/subjects),
-  "actions": string[] (activities happening; [] if none),
-  "mood": string (overall mood/atmosphere),
-  "colors": string[] (dominant colors),
-  "weather": string (weather/lighting; "indoor/not applicable" if none),
-  "location_type": string (e.g. "urban historic", "coastal", "indoor studio"),
-  "keywords": string[] (search keywords a user might type to find this image)
+  "scene_description": string — 3 to 5 detailed sentences. Describe the whole scene from
+     foreground to background: the main subject, what surrounds it, architecture/nature,
+     materials and textures, people (how many, what they are doing/wearing), lighting and
+     atmosphere, and any recognizable landmark or place. Be concrete and specific.
+  "setting": string — one sentence naming the broader place/context and country/region if
+     identifiable (e.g. "the courtyard of the Louvre museum in Paris, France").
+  "objects": string[] — EVERY distinct visible object, subject, structure, or element.
+     Aim for 8-20 items. Include background elements, not just the main subject.
+  "actions": string[] — activities/events happening (e.g. "people kayaking", "tourists
+     walking"); [] if it is a still scene with no action.
+  "mood": string — the overall mood/atmosphere in a few descriptive words.
+  "colors": string[] — the dominant and accent colors, specific where possible
+     ("terracotta", "turquoise", "slate grey"). 4-8 items.
+  "weather": string — weather and lighting ("clear blue sky", "overcast"; use
+     "indoor / not applicable" when inside).
+  "time_of_day": string — "golden hour", "blue hour", "night", "midday", etc.; "unknown"
+     if you truly cannot tell.
+  "season": string — "summer", "winter", etc.; "unknown" if not inferable.
+  "location_type": string — kind of place ("urban historic", "coastal", "mountain lake",
+     "indoor exhibition").
+  "notable_details": string[] — the specific, memorable details a person might search by:
+     EXACT visible text on signs/banners, brand names, license plates or numbers, named
+     landmarks, distinctive or unusual features. Read and transcribe visible text. [] if none.
+  "photographic_style": string — composition and style ("wide-angle smartphone travel
+     snapshot", "low-angle close-up", "aerial view").
+  "keywords": string[] — 10-20 varied search terms a user might type to find this image,
+     including synonyms, the place, the subject, and the mood.
 }
-Be specific and factual. Do not invent details you cannot see. Output JSON only, no prose, no markdown fences.`;
+Output JSON only. No prose, no explanations, no markdown code fences.`;
 
 /** JSON Schema derived from the Zod contract — one source of truth (NFR-3, NFR-7). */
 const METADATA_JSON_SCHEMA = z.toJSONSchema(imageMetadataSchema);
@@ -81,7 +105,7 @@ async function callVision(env: Env, dataUrl: string, prompt: string): Promise<un
       },
     ],
     response_format: { type: 'json_schema', json_schema: METADATA_JSON_SCHEMA },
-    max_tokens: 800,
+    max_tokens: 1600,
     temperature: 0.2,
   });
   return coerceJson(aiResponseSchema.parse(raw).response);

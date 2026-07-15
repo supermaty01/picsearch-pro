@@ -4,14 +4,20 @@ import { type Env } from '../src/env.js';
 
 /** A valid ImageMetadata fixture — the "happy path" vision output. */
 export const validMetadata: ImageMetadata = {
-  scene_description: 'A golden beach at sunset with gentle waves rolling onto the sand.',
-  objects: ['beach', 'ocean', 'sun', 'sand'],
-  actions: ['waves rolling'],
+  scene_description:
+    'A golden beach at sunset with gentle waves rolling onto the sand. The sun sits low on the horizon, casting warm light across the water. A few silhouetted figures walk along the shoreline.',
+  setting: 'a wide sandy beach on a coastline at sunset',
+  objects: ['beach', 'ocean', 'sun', 'sand', 'waves', 'people'],
+  actions: ['waves rolling', 'people walking'],
   mood: 'calm and warm',
   colors: ['orange', 'gold', 'blue'],
   weather: 'clear evening sky',
+  time_of_day: 'golden hour',
+  season: 'summer',
   location_type: 'coastal',
-  keywords: ['beach', 'sunset', 'ocean', 'summer'],
+  notable_details: [],
+  photographic_style: 'wide landscape smartphone photo',
+  keywords: ['beach', 'sunset', 'ocean', 'summer', 'golden hour', 'coast'],
 };
 
 /** Minimal fake Env; `AI.run` is stubbed per test. */

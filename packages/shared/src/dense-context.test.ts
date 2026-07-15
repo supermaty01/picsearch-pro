@@ -6,12 +6,17 @@ import { imageMetadataSchema, type ImageMetadata } from './image-metadata.js';
 const sample: ImageMetadata = {
   scene_description:
     "A bird's-eye view of a European canal on a sunny day, surrounded by medieval timber-framed buildings.",
+  setting: 'the historic canal district of an old European town',
   objects: ['canal', 'water', 'medieval houses', 'red flowers', 'bridge'],
   actions: ['people walking along the river'],
   mood: 'Peaceful, picturesque, touristy, summery',
   colors: ['sky blue', 'vegetation green', 'terracotta brown'],
   weather: 'Warm and sunny with light scattered clouds',
+  time_of_day: 'midday',
+  season: 'summer',
   location_type: 'Urban, historic, European',
+  notable_details: ['La Petite Venise'],
+  photographic_style: 'elevated wide-angle travel photo',
   keywords: ['Alsace', 'La Petite Venise', 'medieval architecture', 'canal'],
 };
 

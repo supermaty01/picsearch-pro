@@ -27,6 +27,7 @@ const doneReport = {
       perQuery: [
         {
           queryId: 'q01',
+          queryText: 'notre dame cathedral gothic facade lit up at night',
           category: 'direct',
           recallAt3: 1,
           recallAt5: 1,

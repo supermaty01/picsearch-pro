@@ -46,6 +46,7 @@ export type BenchmarkStartResponse = z.infer<typeof benchmarkStartResponseSchema
 
 export const perQueryResultSchema = z.object({
   queryId: z.string(),
+  queryText: z.string(),
   category: queryCategorySchema,
   recallAt3: z.number(),
   recallAt5: z.number(),
