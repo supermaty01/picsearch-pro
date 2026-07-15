@@ -1,30 +1,50 @@
 # Test dataset — image sources
 
-Drop the images into `test-dataset/images/` named `<slug>.<ext>` (jpg/png/webp).
-The seed script (`pnpm seed`) ingests each through the real pipeline and stores it
-at `storage_path = seed/<slug>.<ext>`, which the benchmark uses to map the
+Images live in `test-dataset/images/`, named `<slug>.<ext>`. The seed script
+(`pnpm seed`) ingests each through the real pipeline and stores it at
+`storage_path = seed/<slug>.<ext>`, which the benchmark uses to map the
 ground-truth slugs (see `ground-truth.json`) to real image ids.
 
-Use small, license-safe images (Unsplash/Pexels or your own photos). Record the
-source + license per image below so the dataset stays redistributable.
+## Real photos (owner's own travel photos)
 
-| Slug                 | Suggested subject                                 | Source URL | License |
-| -------------------- | ------------------------------------------------- | ---------- | ------- |
-| `colmar-canal`       | Canal with medieval timber-framed houses (Colmar) |            |         |
-| `beach-sunset`       | Golden beach at sunset over the ocean             |            |         |
-| `gothic-cathedral`   | Gothic cathedral facade / architecture            |            |         |
-| `snowy-mountain`     | Snow-capped mountain peak at dawn                 |            |         |
-| `northern-lights`    | Green aurora over a night sky                     |            |         |
-| `desert-dunes`       | Rolling desert sand dunes                         |            |         |
-| `tokyo-street-neon`  | Neon-lit city street at night                     |            |         |
-| `venice-gondola`     | Gondola on a Venetian canal                       |            |         |
-| `coffee-latte-art`   | Coffee cup with latte art (top-down)              |            |         |
-| `autumn-forest-path` | Forest path with autumn foliage                   |            |         |
-| `red-vintage-car`    | A red vintage/classic car                         |            |         |
-| `lavender-field`     | Rows of purple lavender in a field                |            |         |
-| `city-night-skyline` | City skyline at night (extra / gallery filler)    |            |         |
-| `old-library`        | Interior of an old library                        |            |         |
-| `surfers-waves`      | Surfers riding ocean waves                        |            |         |
+Personal photographs by the project owner (Mateo), used with permission. Mostly a
+2024 trip through France and Croatia, plus some winter/animal shots.
 
-The first 12 slugs are referenced by `ground-truth.json`; the last three are
-optional filler so the gallery and retrieval have distractors to compete against.
+| Slug                         | Subject                                                      |
+| ---------------------------- | ------------------------------------------------------------ |
+| `police-lamborghini-airport` | Blue "Polizia" Lamborghini on display in an airport terminal |
+| `notre-dame-facade-night`    | Notre-Dame de Paris — Gothic twin-tower facade at blue hour  |
+| `flowering-tree-blue-sky`    | Flowering linden tree against a blue summer sky              |
+| `louvre-glass-pyramid`       | The Louvre glass pyramid and courtyard, Paris                |
+| `hilltop-stone-fortress`     | Hilltop stone fortress on a rocky coast (Dubrovnik)          |
+| `dubrovnik-sea-walls-kayaks` | Dubrovnik sea walls with red kayaks on turquoise water       |
+| `dubrovnik-oldtown-sunset`   | Dubrovnik old-town harbor at golden hour, palm silhouette    |
+| `calico-cat-bougainvillea`   | Calico cat sleeping on a ledge by purple bougainvillea       |
+| `pink-sunset-beach`          | Dramatic pink sunset over a beach with people at the shore   |
+| `turquoise-clear-water`      | Crystal-clear turquoise water over rocks at a lake edge      |
+| `emerald-lake-cliff`         | Emerald lake below a limestone cliff, lush forest (Plitvice) |
+| `ornate-church-golden-hour`  | Ornate stone church facade with rose window at golden hour   |
+| `french-manor-magnolia`      | French country manor with a pink magnolia in spring          |
+| `full-moon-city-night`       | Full moon through clouds over a Haussmann building at night  |
+| `paris-street-corner-cafe`   | Parisian street corner with a café under a mackerel sky      |
+| `snowman-santa-hat`          | Snowman with a Santa hat, scarf, and carrot nose at night    |
+| `snow-angel-imprint`         | Snow-angel imprint in fresh snow at night                    |
+| `christmas-nativity-scene`   | Elaborate Christmas nativity scene (nacimiento) with lights  |
+| `potbellied-pig-farm`        | Black-and-white pot-bellied pig in a leafy farmyard          |
+
+## Generated illustrations (not photographs)
+
+Flat-design vector illustrations produced by `scripts/generate_illustrations.py`
+(Pillow) to add category variety. Regenerate with
+`python scripts/generate_illustrations.py`. Replace with real photos anytime.
+
+| Slug                   | Subject                                    |
+| ---------------------- | ------------------------------------------ |
+| `snowy-mountain-peak`  | Snow-capped mountain peak under a blue sky |
+| `desert-sand-dunes`    | Rolling desert sand dunes at low sun       |
+| `tropical-beach-palms` | Tropical beach with a palm tree and sea    |
+| `city-skyline-night`   | City skyline at night with a moon          |
+| `autumn-forest-path`   | Autumn forest with a path                  |
+
+The benchmark (`ground-truth.json`) exercises all four agent-route categories
+(direct, noisy, multi-concept, ambiguous) across these images.

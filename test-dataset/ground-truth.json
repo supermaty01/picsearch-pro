@@ -1,23 +1,23 @@
 {
-  "$comment": "Benchmark ground truth (FR-13, docs/06). expectedImageIds are stable slugs; the seed script stores images at storage_path 'seed/<slug>.<ext>' so the benchmark maps slugs to real image ids at run time. Ambiguous queries use ['*'] (matches no image) and expectClarification: only strategy D can score them, via a clarifying question.",
+  "$comment": "Benchmark ground truth (FR-13, docs/06). expectedImageIds are the image slugs (filenames without extension in test-dataset/images/); the seed script stores each at storage_path 'seed/<slug>.<ext>' and the benchmark maps slugs to real image ids at run time. Ambiguous queries use ['*'] (matches no image) + expectClarification: only strategy D can score them, via a clarifying question. Queries reference the real travel photos plus the generated illustration scenes.",
   "queries": [
     {
       "id": "q01",
       "category": "direct",
-      "query": "canal with medieval timber-framed houses",
-      "expectedImageIds": ["colmar-canal"]
+      "query": "notre dame cathedral gothic facade lit up at night",
+      "expectedImageIds": ["notre-dame-facade-night"]
     },
     {
       "id": "q02",
       "category": "noisy",
-      "query": "that pic i took in frnace last summr",
-      "expectedImageIds": ["colmar-canal"]
+      "query": "that polis lambo sports car at the airprt",
+      "expectedImageIds": ["police-lamborghini-airport"]
     },
     {
       "id": "q03",
       "category": "multi-concept",
-      "query": "beach sunset but also gothic architecture",
-      "expectedImageIds": ["beach-sunset", "gothic-cathedral"]
+      "query": "a beach at sunset but also gothic cathedral architecture",
+      "expectedImageIds": ["pink-sunset-beach", "notre-dame-facade-night"]
     },
     {
       "id": "q04",
@@ -29,51 +29,63 @@
     {
       "id": "q05",
       "category": "direct",
-      "query": "snow-capped mountain peak at dawn",
-      "expectedImageIds": ["snowy-mountain"]
+      "query": "the glass pyramid in the courtyard of the louvre",
+      "expectedImageIds": ["louvre-glass-pyramid"]
     },
     {
       "id": "q06",
       "category": "noisy",
-      "query": "nothern lights green glowing sky",
-      "expectedImageIds": ["northern-lights"]
+      "query": "cristal clear turquiose watter over the rocks",
+      "expectedImageIds": ["turquoise-clear-water"]
     },
     {
       "id": "q07",
       "category": "multi-concept",
-      "query": "desert sand dunes and a neon city street at night",
-      "expectedImageIds": ["desert-dunes", "tokyo-street-neon"]
+      "query": "an old stone fortress and people kayaking on the sea",
+      "expectedImageIds": ["hilltop-stone-fortress", "dubrovnik-sea-walls-kayaks"]
     },
     {
       "id": "q08",
       "category": "ambiguous",
-      "query": "that colorful one",
+      "query": "that pretty one from the trip",
       "expectedImageIds": ["*"],
       "expectClarification": true
     },
     {
       "id": "q09",
       "category": "direct",
-      "query": "gondola gliding along a Venetian canal",
-      "expectedImageIds": ["venice-gondola"]
+      "query": "a snowman with a santa hat and scarf in the snow",
+      "expectedImageIds": ["snowman-santa-hat"]
     },
     {
       "id": "q10",
       "category": "noisy",
-      "query": "cofee cup w latte art on top",
-      "expectedImageIds": ["coffee-latte-art"]
+      "query": "cat sleepin next to purple flowrs at dusk",
+      "expectedImageIds": ["calico-cat-bougainvillea"]
     },
     {
       "id": "q11",
       "category": "multi-concept",
-      "query": "an autumn forest path and a red vintage car",
-      "expectedImageIds": ["autumn-forest-path", "red-vintage-car"]
+      "query": "a snowman and also a christmas nativity scene",
+      "expectedImageIds": ["snowman-santa-hat", "christmas-nativity-scene"]
     },
     {
       "id": "q12",
       "category": "direct",
-      "query": "rows of purple lavender in a field",
-      "expectedImageIds": ["lavender-field"]
+      "query": "a black and white pot-bellied pig in a garden",
+      "expectedImageIds": ["potbellied-pig-farm"]
+    },
+    {
+      "id": "q13",
+      "category": "direct",
+      "query": "a snow-capped mountain peak under a blue sky",
+      "expectedImageIds": ["snowy-mountain-peak"]
+    },
+    {
+      "id": "q14",
+      "category": "noisy",
+      "query": "roling sand dunes in the dessert",
+      "expectedImageIds": ["desert-sand-dunes"]
     }
   ]
 }
