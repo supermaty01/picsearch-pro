@@ -59,9 +59,86 @@ export const searchResponseSchema = z.discriminatedUnion('kind', [
 ]);
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
 
+// --- Telemetry (FR-11, FR-12) -----------------------------------------------
+
+export const telemetryRecordSchema = z.object({
+  id: z.uuid(),
+  queryText: z.string(),
+  agentAction: agentActionSchema,
+  resolvedQueries: z.array(z.string()),
+  agentDecisionMs: z.number().int().nonnegative(),
+  embeddingMs: z.number().int().nonnegative(),
+  vectorSearchMs: z.number().int().nonnegative(),
+  rerankMs: z.number().int().nonnegative(),
+  executionTimeMs: z.number().int().nonnegative(),
+  tokensUsed: z.number().int().nonnegative().nullable(),
+  modelProvider: z.string(),
+  rerankSkipped: z.boolean(),
+  createdAt: z.string(),
+});
+export type TelemetryRecord = z.infer<typeof telemetryRecordSchema>;
+
+export const telemetryListResponseSchema = z.object({
+  items: z.array(telemetryRecordSchema),
+});
+export type TelemetryListResponse = z.infer<typeof telemetryListResponseSchema>;
+
 export const healthResponseSchema = z.object({
-  status: z.literal('ok'),
+  status: z.enum(['ok', 'degraded']),
   service: z.string(),
   version: z.string(),
+  checks: z.object({
+    db: z.boolean(),
+    storage: z.boolean(),
+    ai: z.boolean(),
+  }),
 });
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
+
+/**
+ * RFC 9457 problem+json body returned at every API error boundary (AGENTS §5).
+ * `type` is a stable slug the UI can switch on; `detail` is human-readable.
+ */
+export const problemDetailsSchema = z.object({
+  type: z.string(),
+  title: z.string(),
+  status: z.number().int(),
+  detail: z.string(),
+  requestId: z.string(),
+});
+export type ProblemDetails = z.infer<typeof problemDetailsSchema>;
+
+// --- Ingestion (FR-1..FR-5) -------------------------------------------------
+
+export const ingestTimingsSchema = z.object({
+  visionMs: z.number().int().nonnegative(),
+  embeddingMs: z.number().int().nonnegative(),
+  totalMs: z.number().int().nonnegative(),
+});
+export type IngestTimings = z.infer<typeof ingestTimingsSchema>;
+
+export const ingestResponseSchema = z.object({
+  id: z.uuid(),
+  imageUrl: z.url(),
+  metadata: imageMetadataSchema,
+  denseContext: z.string(),
+  timings: ingestTimingsSchema,
+});
+export type IngestResponse = z.infer<typeof ingestResponseSchema>;
+
+// --- Gallery listing (GET /images) ------------------------------------------
+
+export const imageSummarySchema = z.object({
+  id: z.uuid(),
+  imageUrl: z.url(),
+  denseContext: z.string(),
+  metadata: imageMetadataSchema,
+  createdAt: z.string(),
+});
+export type ImageSummary = z.infer<typeof imageSummarySchema>;
+
+export const imageListResponseSchema = z.object({
+  items: z.array(imageSummarySchema),
+  nextCursor: z.string().nullable(),
+});
+export type ImageListResponse = z.infer<typeof imageListResponseSchema>;
