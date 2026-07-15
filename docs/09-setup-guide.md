@@ -64,11 +64,35 @@ cloud credentials — the tests mock the AI and DB bindings.
    three fixtures inside a transaction, prints vector-only / FTS-only / fused
    rankings, then **rolls itself back**. You should see sensible fused ordering.
 
-4. **Confirm RLS blocks anonymous access.** In the SQL editor:
+4. **Confirm RLS blocks anonymous access.** With RLS enabled and no policies, the
+   `anon` role can run a query but sees **zero rows** (RLS filters silently — it is
+   _not_ a "permission denied" error; Supabase grants `anon` the table privilege by
+   default, and RLS is what gates the rows). First confirm RLS is actually on:
 
    ```sql
-   set local role anon;
-   select count(*) from images;   -- expect: permission denied
+   -- Expect relrowsecurity = true for both tables:
+   select relname, relrowsecurity
+   from pg_class
+   where relname in ('images', 'query_telemetry')
+     and relnamespace = 'public'::regnamespace;
+
+   -- Expect ZERO rows (no anon policies):
+   select tablename, policyname, roles, cmd
+   from pg_policies
+   where schemaname = 'public' and tablename in ('images', 'query_telemetry');
+   ```
+
+   To prove the row-filtering with data — note `set local role` only applies inside
+   a transaction, so keep it all in one block:
+
+   ```sql
+   begin;
+     insert into images (storage_path, image_url, structured_metadata, dense_context, embedding)
+     values ('rls-probe', 'http://x', '{}', 'probe', array_fill(0.1::float8, array[384])::vector);
+     select count(*) as as_postgres from images;   -- 1 (service role sees it)
+     set local role anon;
+     select count(*) as as_anon from images;        -- 0 (RLS hides it from anon)
+   rollback;
    ```
 
    The browser never talks to these tables — only the Worker (service role) does.

@@ -68,8 +68,12 @@ from hybrid_search(
     match_threshold => 0.0
 );
 
--- RLS check: as the anon role, the table must be unreadable (NFR-5).
--- (Run separately in a session authenticated as anon; service role bypasses RLS.)
---   set local role anon; select count(*) from images;  -- expect: permission denied / 0 rows
+-- RLS check: with RLS on and no policies, anon SELECTs return 0 rows (silently
+-- filtered — NOT a "permission denied" error), even when rows exist (NFR-5).
+-- `set local role` only applies inside a transaction, so keep it in one block:
+--   begin;
+--     set local role anon; select count(*) from images;  -- expect: 0
+--   rollback;
+-- Confirm RLS is enabled: select relrowsecurity from pg_class where relname='images';
 
 rollback;
