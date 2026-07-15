@@ -26,7 +26,7 @@ export function TelemetryPanel() {
       <ViewHeading
         tag="observability / query-telemetry"
         title="Telemetry Stream"
-        note="every search writes one row: agent route, per-stage latency, tokens, provider (FR-11)"
+        note="Every search writes one row: agent route, per-stage latency, tokens, provider (FR-11)"
       />
 
       <div className="flex flex-wrap gap-3 font-mono text-[11px] text-dim">
@@ -44,7 +44,7 @@ export function TelemetryPanel() {
         <p className="font-mono text-xs text-route-fallback">could not load telemetry.</p>
       ) : telemetry.data.items.length === 0 ? (
         <p className="border border-line-2 bg-surface p-6 text-center font-mono text-xs text-dim">
-          no searches yet. run a search to see per-stage latency here.
+          No searches yet. Run a search to see per-stage latency here.
         </p>
       ) : (
         <ul className="space-y-2">

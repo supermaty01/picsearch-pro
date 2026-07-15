@@ -14,7 +14,7 @@ export function GalleryView() {
       <ViewHeading
         tag="gallery / indexed-corpus"
         title="Image Gallery"
-        note="every image is analyzed by the vision model and stored with its embedding + tsvector"
+        note="Every image is analyzed by the vision model and stored with its embedding + tsvector"
       />
       <UploadDropzone />
 

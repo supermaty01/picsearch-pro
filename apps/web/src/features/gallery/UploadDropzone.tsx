@@ -55,7 +55,7 @@ export function UploadDropzone() {
           dragging ? 'border-accent bg-accent/5' : 'border-line-3'
         }`}
       >
-        <p className="font-mono text-xs text-muted">drag an image here, or</p>
+        <p className="font-mono text-xs text-muted">Drag an image here, or</p>
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
