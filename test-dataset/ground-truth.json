@@ -1,0 +1,79 @@
+{
+  "$comment": "Benchmark ground truth (FR-13, docs/06). expectedImageIds are stable slugs; the seed script stores images at storage_path 'seed/<slug>.<ext>' so the benchmark maps slugs to real image ids at run time. Ambiguous queries use ['*'] (matches no image) and expectClarification: only strategy D can score them, via a clarifying question.",
+  "queries": [
+    {
+      "id": "q01",
+      "category": "direct",
+      "query": "canal with medieval timber-framed houses",
+      "expectedImageIds": ["colmar-canal"]
+    },
+    {
+      "id": "q02",
+      "category": "noisy",
+      "query": "that pic i took in frnace last summr",
+      "expectedImageIds": ["colmar-canal"]
+    },
+    {
+      "id": "q03",
+      "category": "multi-concept",
+      "query": "beach sunset but also gothic architecture",
+      "expectedImageIds": ["beach-sunset", "gothic-cathedral"]
+    },
+    {
+      "id": "q04",
+      "category": "ambiguous",
+      "query": "something nice from vacation",
+      "expectedImageIds": ["*"],
+      "expectClarification": true
+    },
+    {
+      "id": "q05",
+      "category": "direct",
+      "query": "snow-capped mountain peak at dawn",
+      "expectedImageIds": ["snowy-mountain"]
+    },
+    {
+      "id": "q06",
+      "category": "noisy",
+      "query": "nothern lights green glowing sky",
+      "expectedImageIds": ["northern-lights"]
+    },
+    {
+      "id": "q07",
+      "category": "multi-concept",
+      "query": "desert sand dunes and a neon city street at night",
+      "expectedImageIds": ["desert-dunes", "tokyo-street-neon"]
+    },
+    {
+      "id": "q08",
+      "category": "ambiguous",
+      "query": "that colorful one",
+      "expectedImageIds": ["*"],
+      "expectClarification": true
+    },
+    {
+      "id": "q09",
+      "category": "direct",
+      "query": "gondola gliding along a Venetian canal",
+      "expectedImageIds": ["venice-gondola"]
+    },
+    {
+      "id": "q10",
+      "category": "noisy",
+      "query": "cofee cup w latte art on top",
+      "expectedImageIds": ["coffee-latte-art"]
+    },
+    {
+      "id": "q11",
+      "category": "multi-concept",
+      "query": "an autumn forest path and a red vintage car",
+      "expectedImageIds": ["autumn-forest-path", "red-vintage-car"]
+    },
+    {
+      "id": "q12",
+      "category": "direct",
+      "query": "rows of purple lavender in a field",
+      "expectedImageIds": ["lavender-field"]
+    }
+  ]
+}
