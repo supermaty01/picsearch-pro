@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens (Tailwind v4 CSS-first config — no tailwind.config.js).
+ * Placeholder palette: replace with tokens extracted from
+ * design/PicSearch-Pro.dc.html when the mockup lands (docs/08).
+ */
+@theme {
+  --color-brand-50: oklch(0.97 0.02 260);
+  --color-brand-500: oklch(0.62 0.19 260);
+  --color-brand-600: oklch(0.55 0.21 260);
+  --color-brand-900: oklch(0.3 0.12 260);
+  --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}

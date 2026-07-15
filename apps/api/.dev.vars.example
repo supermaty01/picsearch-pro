@@ -1,0 +1,4 @@
+# Copy to .dev.vars (gitignored) for local development. Never commit real values.
+SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="service-role-key-here"
+AI_GATEWAY_ID="picsearch-gateway"

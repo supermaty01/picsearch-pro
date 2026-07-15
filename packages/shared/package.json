@@ -1,0 +1,21 @@
+{
+  "name": "@picsearch/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared contracts: Zod schemas, API types, model registry.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
