@@ -32,9 +32,12 @@ from (values
     ('verify/b.jpg', 'https://example.test/b.jpg',
      '{"keywords":["mountain"]}',
      'Scene: a snowy mountain peak at dawn. Keywords: mountain, snow.', 0.6, 0.1),
+    -- NOTE: use a SMALL non-zero embedding for C. A zero vector makes pgvector's
+    -- cosine distance (<=>) undefined (NaN), which drops the row from the vector
+    -- ranking — real embeddings are never zero, so keep fixtures non-degenerate.
     ('verify/c.jpg', 'https://example.test/c.jpg',
      '{"keywords":["beach","surfing"]}',
-     'Scene: surfers riding waves on a sandy beach. Keywords: beach, surfing.', 0.0, 0.0)
+     'Scene: surfers riding waves on a sandy beach. Keywords: beach, surfing.', 0.1, 0.05)
 ) as p(path, url, meta, ctx, d1, d2);
 
 -- Build the same probe vector for the queries below.
