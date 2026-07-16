@@ -6,6 +6,9 @@ import {
   type SearchTelemetry,
 } from '@picsearch/shared';
 
+import { useState } from 'react';
+
+import { ImageDetailModal } from '../../components/ImageDetailModal.js';
 import { formatScore } from '../../lib/format.js';
 import { MetadataInspector } from '../gallery/MetadataInspector.js';
 import { ClarificationPrompt } from './ClarificationPrompt.js';
@@ -174,25 +177,44 @@ interface ResultCardProps {
 }
 
 function ResultCard({ item, rank }: ResultCardProps) {
+  const [expanded, setExpanded] = useState(false);
   return (
     <li className="overflow-hidden border border-line-2 bg-surface">
       <div className="relative">
-        <img
-          src={item.imageUrl}
-          alt={item.metadata.scene_description}
-          loading="lazy"
-          className="aspect-[4/3] w-full object-cover"
-        />
-        <span className="absolute left-0 top-0 bg-accent px-2 py-1 font-mono text-[11px] font-semibold text-ink">
+        <button
+          type="button"
+          aria-label="View image and metadata in detail"
+          onClick={() => {
+            setExpanded(true);
+          }}
+          className="block w-full cursor-zoom-in"
+        >
+          <img
+            src={item.imageUrl}
+            alt={item.metadata.scene_description}
+            loading="lazy"
+            className="aspect-4/3 w-full object-cover"
+          />
+        </button>
+        <span className="pointer-events-none absolute left-0 top-0 bg-accent px-2 py-1 font-mono text-[11px] font-semibold text-ink">
           #{rank}
         </span>
         <span
           title="Cross-encoder relevance (RRF score when rerank is skipped)"
-          className="absolute right-0 top-0 bg-bg px-2 py-1 font-mono text-[11px] font-semibold text-fg-2"
+          className="pointer-events-none absolute right-0 top-0 bg-bg px-2 py-1 font-mono text-[11px] font-semibold text-fg-2"
         >
           {formatScore(item.score)}
         </span>
       </div>
+      {expanded && (
+        <ImageDetailModal
+          imageUrl={item.imageUrl}
+          metadata={item.metadata}
+          onClose={() => {
+            setExpanded(false);
+          }}
+        />
+      )}
       <div className="border-t border-line p-3">
         <p className="line-clamp-2 text-[13px] leading-snug text-fg-2">
           {item.metadata.scene_description}
