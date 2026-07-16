@@ -24,7 +24,7 @@ flowchart TD
 
 **Ingestion flow:** upload → Storage → Worker orchestrates vision extraction → normalizer builds `dense_context` → embedding → single row insert (metadata + vector + generated tsvector).
 
-**Search flow:** query → **orchestrator agent** (function calling, picks 1 of 4 routes) → `hybrid_search` (1..n times) → merge/dedupe → cross-encoder rerank → top 5 + full telemetry.
+**Search flow:** query → **orchestrator agent** (function calling, picks 1 of 4 routes) → `hybrid_search` (1..n times) → cross-encoder rerank (single query: merged pool vs resolved query; decompose: per-sub-query rerank + round-robin interleave) → top 5 + full telemetry.
 
 ## 2. Components
 
@@ -74,14 +74,19 @@ sequenceDiagram
     A-->>W: search_decomposed(["beach sunset", "gothic cathedral"])
     par sub-query 1
         W->>P: hybrid_search(embed(q1), q1, ...)
+        W->>R: score(q1, dense_context[]) for q1's candidates
     and sub-query 2
         W->>P: hybrid_search(embed(q2), q2, ...)
+        W->>R: score(q2, dense_context[]) for q2's candidates
     end
-    W->>W: merge + dedupe by image id (keep max RRF score)
-    W->>R: score(query, dense_context[]) for top 15
+    W->>W: round-robin interleave per-sub-query rankings, dedupe by image id
     W->>P: INSERT query_telemetry
     W-->>U: top 5 + agent decision + latency waterfall
 ```
+
+> Decompose reranks each sub-query against ITS OWN text, then interleaves — so
+> the best match for each sub-intent surfaces at the top. Direct/reformulate
+> (single query) merge the pool and rerank once against the resolved query.
 
 ## 6. Error handling & resilience
 

@@ -22,9 +22,10 @@ import { type Env } from '../env.js';
 import { NotFoundError, RateLimitedError, UpstreamError } from '../lib/problem.js';
 import { createSupabase, type DbCountResult, type DbResult } from '../lib/supabase.js';
 import { routeQuery } from '../agent/orchestrator.js';
+import { mergeCandidates } from '../lib/merge.js';
 import { type Candidate } from './hybrid-search.js';
 import { rerank } from './rerank.js';
-import { rerankQueryFor, retrieve } from './search.js';
+import { rerankResolved, retrieve } from './search.js';
 
 /** Ground truth is bundled and validated once at module load (fail fast). */
 const GROUND_TRUTH = groundTruthSchema.parse(groundTruthJson);
@@ -176,17 +177,17 @@ async function evaluateStrategy(
   switch (strategy) {
     case 'A': {
       const r = await retrieve(env, [query.query], VECTOR_ONLY_WEIGHTS);
-      candidates = r.candidates.slice(0, RETRIEVAL.resultCount);
+      candidates = mergeCandidates(r.lists).slice(0, RETRIEVAL.resultCount);
       break;
     }
     case 'B': {
       const r = await retrieve(env, [query.query], DEFAULT_WEIGHTS);
-      candidates = r.candidates.slice(0, RETRIEVAL.resultCount);
+      candidates = mergeCandidates(r.lists).slice(0, RETRIEVAL.resultCount);
       break;
     }
     case 'C': {
       const r = await retrieve(env, [query.query], DEFAULT_WEIGHTS);
-      candidates = (await rerank(env, query.query, r.candidates)).results;
+      candidates = (await rerank(env, query.query, mergeCandidates(r.lists))).results;
       break;
     }
     case 'D': {
@@ -194,9 +195,11 @@ async function evaluateStrategy(
       if (agent.decision.kind === 'clarification') {
         clarified = true;
       } else {
+        // Same retrieve → per-sub-query rerank + interleave path as the live
+        // search, so the C→D delta measures the agent's real contribution.
         const r = await retrieve(env, agent.decision.queries, DEFAULT_WEIGHTS);
-        const rerankQuery = rerankQueryFor(query.query, agent.decision.queries);
-        candidates = (await rerank(env, rerankQuery, r.candidates)).results;
+        candidates = (await rerankResolved(env, query.query, agent.decision.queries, r.lists))
+          .results;
       }
       break;
     }
