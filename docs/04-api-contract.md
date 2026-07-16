@@ -30,7 +30,9 @@ Multipart upload (`file`). Validates MIME/size, stores object, runs the ingestio
 }
 ```
 
-Errors: `413` too large · `415` bad type · `422` vision output failed validation after retry.
+Errors: `413` too large · `415` bad type · `422` vision output failed validation
+after retry · `422 unsafe-content` the moderation check (piggybacked on the vision
+call, `content_rating`) flagged the image as adult/graphic — nothing is stored.
 
 ### `GET /api/v1/images?limit&cursor`
 

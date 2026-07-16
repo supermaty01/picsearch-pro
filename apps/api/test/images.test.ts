@@ -1,4 +1,9 @@
-import { ingestResponseSchema, problemDetailsSchema, UPLOAD_LIMITS } from '@picsearch/shared';
+import {
+  ingestResponseSchema,
+  MODELS,
+  problemDetailsSchema,
+  UPLOAD_LIMITS,
+} from '@picsearch/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/lib/supabase.js', () => ({
@@ -8,7 +13,7 @@ vi.mock('../src/lib/supabase.js', () => ({
 
 import app from '../src/index.js';
 import { createSupabase } from '../src/lib/supabase.js';
-import { defaultAiRun, makeEnv, makeFakeSupabase } from './helpers.js';
+import { defaultAiRun, makeEnv, makeFakeSupabase, validVisionAnalysis } from './helpers.js';
 
 const env = makeEnv((model) => defaultAiRun(model));
 
@@ -32,6 +37,21 @@ describe('POST /api/v1/images (FR-1..FR-5)', () => {
     expect(body.id).toBe('11111111-1111-4111-8111-111111111111');
     expect(body.imageUrl).toContain('https://cdn.test/');
     expect(res.headers.get('x-request-id')).toBeTruthy();
+  });
+
+  it('rejects an image flagged as adult content → 422, nothing stored', async () => {
+    const unsafeEnv = makeEnv((model) => {
+      if (model === MODELS.vision) {
+        return { response: JSON.stringify({ ...validVisionAnalysis, content_rating: 'unsafe' }) };
+      }
+      return defaultAiRun(model);
+    });
+    const form = new FormData();
+    form.set('file', new File([new Uint8Array([1, 2, 3])], 'nope.jpg', { type: 'image/jpeg' }));
+    const res = await app.request('/api/v1/images', { method: 'POST', body: form }, unsafeEnv);
+    expect(res.status).toBe(422);
+    const body = problemDetailsSchema.parse(await res.json());
+    expect(body.type).toContain('unsafe-content');
   });
 
   it('rejects a disallowed MIME type → 415 problem+json', async () => {

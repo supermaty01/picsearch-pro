@@ -54,6 +54,13 @@ export class VisionValidationError extends AppError {
   readonly title = 'Vision output failed validation';
 }
 
+/** 422 — the moderation check flagged the upload as adult/graphic content. */
+export class UnsafeContentError extends AppError {
+  readonly status = 422;
+  readonly slug = 'unsafe-content';
+  readonly title = 'Content not allowed';
+}
+
 /** 429 — per-IP rate limit exceeded (docs/04 §Rate limits). */
 export class RateLimitedError extends AppError {
   readonly status = 429;
