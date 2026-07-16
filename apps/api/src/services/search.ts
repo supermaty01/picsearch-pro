@@ -1,16 +1,17 @@
-import { MODELS, type SearchResponse, type SearchResultItem } from '@picsearch/shared';
+import {
+  DEFAULT_WEIGHTS,
+  MODELS,
+  type SearchResponse,
+  type SearchResultItem,
+  type SearchWeights,
+} from '@picsearch/shared';
 
 import { type Env } from '../env.js';
 import { timed } from '../lib/timed.js';
 import { mergeCandidates } from '../lib/merge.js';
 import { routeQuery } from '../agent/orchestrator.js';
 import { embed } from './embedding.js';
-import {
-  type Candidate,
-  DEFAULT_WEIGHTS,
-  hybridSearch,
-  type SearchWeights,
-} from './hybrid-search.js';
+import { type Candidate, hybridSearch } from './hybrid-search.js';
 import { rerank } from './rerank.js';
 import { insertTelemetry } from './telemetry.js';
 
@@ -27,32 +28,47 @@ export interface RetrieveResult {
  * Embed each query and run `hybrid_search`, merging results (FR-8). Shared by the
  * user search path and the benchmark strategies — the ONLY difference between
  * strategies is `weights` and whether rerank runs (docs/06). One code path.
+ *
+ * Sub-queries run concurrently (at most `RETRIEVAL.maxSubQueries`), so a
+ * decomposed query costs roughly one retrieval round-trip, not three. The
+ * telemetry fields keep summing per-stage time across sub-queries.
  */
 export async function retrieve(
   env: Env,
   queries: string[],
   weights: SearchWeights = DEFAULT_WEIGHTS,
 ): Promise<RetrieveResult> {
-  let embeddingMs = 0;
-  let vectorSearchMs = 0;
-  const lists: Candidate[][] = [];
+  const perQuery = await Promise.all(
+    queries.map(async (q) => {
+      const embedding = await timed(() => embed(env, q));
+      const search = await timed(() =>
+        hybridSearch(env, { embedding: embedding.value, queryText: q, weights }),
+      );
+      return { list: search.value, embeddingMs: embedding.ms, vectorSearchMs: search.ms };
+    }),
+  );
 
-  for (const q of queries) {
-    const embedding = await timed(() => embed(env, q));
-    embeddingMs += embedding.ms;
-    const search = await timed(() =>
-      hybridSearch(env, { embedding: embedding.value, queryText: q, weights }),
-    );
-    vectorSearchMs += search.ms;
-    lists.push(search.value);
-  }
-
-  return { candidates: mergeCandidates(lists), embeddingMs, vectorSearchMs };
+  return {
+    candidates: mergeCandidates(perQuery.map((r) => r.list)),
+    embeddingMs: perQuery.reduce((sum, r) => sum + r.embeddingMs, 0),
+    vectorSearchMs: perQuery.reduce((sum, r) => sum + r.vectorSearchMs, 0),
+  };
 }
 
 export interface SearchOptions {
   /** Defer a fire-and-forget side effect (telemetry) via `ctx.waitUntil`. */
   defer?: (promise: Promise<unknown>) => void;
+}
+
+/**
+ * The text the cross-encoder scores against. A single resolved query (direct or
+ * reformulated) is the cleaned statement of intent — scoring the raw query
+ * instead would undo the agent's typo/slang/terseness fixes at the rerank
+ * stage. Decomposed queries diverge from each other, so the original query is
+ * the only text that covers the merged candidate set.
+ */
+export function rerankQueryFor(originalQuery: string, resolvedQueries: string[]): string {
+  return resolvedQueries.length === 1 ? (resolvedQueries[0] ?? originalQuery) : originalQuery;
 }
 
 /**
@@ -93,7 +109,9 @@ export async function runSearch(
 
   const resolvedQueries = agent.decision.queries;
   const { candidates, embeddingMs, vectorSearchMs } = await retrieve(env, resolvedQueries);
-  const reranked = await timed(() => rerank(env, query, candidates));
+  const reranked = await timed(() =>
+    rerank(env, rerankQueryFor(query, resolvedQueries), candidates),
+  );
 
   const results: SearchResultItem[] = reranked.value.results.map((c) => ({
     id: c.id,

@@ -2,7 +2,16 @@ import { imageMetadataSchema, type ImageListResponse } from '@picsearch/shared';
 
 import { type Env } from '../env.js';
 import { UpstreamError } from '../lib/problem.js';
-import { createSupabase } from '../lib/supabase.js';
+import { createSupabase, type DbResult } from '../lib/supabase.js';
+
+/** One `images` row as selected for the gallery (snake_case, PostgREST). */
+interface ImageRow {
+  id: string;
+  image_url: string;
+  dense_context: string;
+  structured_metadata: unknown;
+  created_at: string;
+}
 
 /**
  * Gallery listing (GET /images). Newest first, keyset pagination on `created_at`
@@ -22,18 +31,7 @@ export async function listImages(
 
   if (cursor) query = query.lt('created_at', cursor);
 
-  const { data, error } = (await query) as {
-    data:
-      | {
-          id: string;
-          image_url: string;
-          dense_context: string;
-          structured_metadata: unknown;
-          created_at: string;
-        }[]
-      | null;
-    error: { message: string } | null;
-  };
+  const { data, error } = (await query) as DbResult<ImageRow[]>;
   if (error) {
     throw new UpstreamError(`Gallery listing failed: ${error.message}`);
   }

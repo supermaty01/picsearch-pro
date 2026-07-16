@@ -1,28 +1,40 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { getHealth } from '../lib/api.js';
+import { QUERY_KEYS } from '../lib/queryKeys.js';
 
-export type TabId = 'search' | 'gallery' | 'evaluation' | 'telemetry';
+export type TabId = 'overview' | 'search' | 'gallery' | 'evaluation' | 'telemetry';
 
-const TABS: { id: TabId; label: string }[] = [
+interface Tab {
+  id: TabId;
+  label: string;
+}
+
+const TABS: Tab[] = [
+  { id: 'overview', label: 'Overview' },
   { id: 'search', label: 'Search Studio' },
   { id: 'gallery', label: 'Gallery' },
   { id: 'evaluation', label: 'Evaluation Lab' },
   { id: 'telemetry', label: 'Telemetry' },
 ];
 
+interface HeaderProps {
+  active: TabId;
+  onSelect: (tab: TabId) => void;
+}
+
 /** Brand + primary navigation + live status bar (docs/08 mockup). */
-export function Header({ active, onSelect }: { active: TabId; onSelect: (tab: TabId) => void }) {
+export function Header({ active, onSelect }: HeaderProps) {
   return (
     <header className="flex flex-wrap items-stretch border-b border-line bg-header">
       <div className="flex items-center gap-3 border-r border-line px-5 py-3.5">
-        <span className="grid size-8 place-items-center bg-accent">
+        <span className="grid size-8 place-items-center bg-accent text-ink">
           <svg
             width="18"
             height="18"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#05130c"
+            stroke="currentColor"
             strokeWidth="2.4"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -36,7 +48,7 @@ export function Header({ active, onSelect }: { active: TabId; onSelect: (tab: Ta
           <span className="block text-base font-bold tracking-tight text-fg">
             PicSearch<span className="text-accent">/</span>Pro
           </span>
-          <span className="block font-mono text-[10px] text-dim">semantic image engine</span>
+          <span className="block font-mono text-[10px] text-dim">Semantic image engine</span>
         </span>
       </div>
 
@@ -71,19 +83,25 @@ export function Header({ active, onSelect }: { active: TabId; onSelect: (tab: Ta
 
 function StatusBar() {
   const health = useQuery({
-    queryKey: ['health'],
+    queryKey: QUERY_KEYS.health,
     queryFn: getHealth,
     refetchInterval: 30_000,
     retry: false,
   });
-  const status = health.isError ? 'offline' : (health.data?.status ?? 'connecting');
-  const ok = status === 'ok';
+  const status = health.isError
+    ? 'Offline'
+    : health.data === undefined
+      ? 'Connecting'
+      : health.data.status === 'ok'
+        ? 'Operational'
+        : 'Degraded';
+  const ok = status === 'Operational';
 
   return (
     <div className="flex items-stretch self-stretch font-mono text-[11px] text-muted">
       <div className="flex items-center gap-2 border-l border-line px-4">
         <span className={`size-2 ${ok ? 'bg-accent' : 'bg-route-fallback'}`} aria-hidden="true" />
-        {ok ? 'operational' : status}
+        {status}
       </div>
       <div className="hidden items-center border-l border-line px-4 sm:flex">workers-ai</div>
       <div className="hidden items-center border-l border-line px-3.5 sm:flex">

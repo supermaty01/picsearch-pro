@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildDenseContext } from './dense-context.js';
+import { buildDenseContext, buildRerankContext } from './dense-context.js';
 import { imageMetadataSchema, type ImageMetadata } from './image-metadata.js';
 
 const sample: ImageMetadata = {
@@ -51,5 +51,25 @@ describe('buildDenseContext', () => {
 
   it('is deterministic (same input, same output)', () => {
     expect(buildDenseContext(sample)).toBe(buildDenseContext(sample));
+  });
+});
+
+describe('buildRerankContext', () => {
+  it('front-loads the discriminative fields (scene, style, keywords)', () => {
+    const ctx = buildRerankContext(sample);
+    expect(ctx.startsWith(sample.scene_description)).toBe(true);
+    expect(ctx).toContain('Style: elevated wide-angle travel photo');
+    expect(ctx).toContain('Keywords: Alsace');
+  });
+
+  it('drops the low-signal fields that only add rerank cost', () => {
+    const ctx = buildRerankContext(sample);
+    expect(ctx).not.toContain('Warm and sunny');
+    expect(ctx).not.toContain('sky blue');
+    expect(ctx).not.toContain('midday');
+  });
+
+  it('is deterministic (same input, same output)', () => {
+    expect(buildRerankContext(sample)).toBe(buildRerankContext(sample));
   });
 });

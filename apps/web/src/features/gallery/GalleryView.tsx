@@ -19,12 +19,12 @@ export function GalleryView() {
       <UploadDropzone />
 
       {gallery.isPending ? (
-        <Spinner label="loading gallery" />
+        <Spinner label="Loading gallery" />
       ) : gallery.isError ? (
-        <p className="font-mono text-xs text-route-fallback">could not load the gallery.</p>
+        <p className="font-mono text-xs text-route-fallback">Could not load the gallery.</p>
       ) : images.length === 0 ? (
         <p className="border border-line-2 bg-surface p-6 text-center font-mono text-xs text-dim">
-          no images yet. upload one above, or run <span className="text-accent">pnpm seed</span> to
+          No images yet. Upload one above, or run <span className="text-accent">pnpm seed</span> to
           load the demo dataset.
         </p>
       ) : (
@@ -42,7 +42,7 @@ export function GalleryView() {
                 disabled={gallery.isFetchingNextPage}
                 className="border border-line-2 bg-surface px-4 py-2 font-mono text-xs text-body hover:bg-elevated disabled:opacity-50"
               >
-                {gallery.isFetchingNextPage ? 'loading…' : 'load more'}
+                {gallery.isFetchingNextPage ? 'Loading…' : 'Load more'}
               </button>
             </div>
           )}

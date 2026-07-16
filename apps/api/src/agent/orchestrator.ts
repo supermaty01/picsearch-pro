@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { type Env } from '../env.js';
 import { aiRun } from '../lib/ai.js';
 import { withTimeout } from '../lib/timed.js';
-import { AGENT_SYSTEM_PROMPT } from './prompt.js';
+import { buildSystemPrompt } from './prompt.js';
 import { buildAgentTools } from './tools.js';
 
 /** How the agent decided to resolve the query. */
@@ -25,19 +25,35 @@ export interface AgentOutcome {
   ms: number;
 }
 
-/** Decision budget; on timeout we fall back to a direct search (docs/05 §4). */
-const AGENT_TIMEOUT_MS = 3000;
+/**
+ * Decision budget; on timeout we fall back to a direct search (docs/05 §4).
+ * 5 s (not 3): glm-4.7-flash needs ~1 s for pass-through decisions but up to
+ * ~4 s when it writes a reformulation or clarifying question on the free tier —
+ * a 3 s budget silently disabled those routes.
+ */
+const AGENT_TIMEOUT_MS = 5000;
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
+/**
+ * A tool call in either provider dialect: legacy Workers AI (`{ name, arguments }`)
+ * or OpenAI chat-completions (`{ function: { name, arguments } }`, used by
+ * glm-4.7-flash). Both are normalized to the flat shape before parsing.
+ */
+const toolCallSchema = z.union([
+  z.object({ name: z.string(), arguments: z.unknown() }),
+  z.object({ function: z.object({ name: z.string(), arguments: z.unknown() }) }),
+]);
+type ToolCall = z.infer<typeof toolCallSchema>;
+
 const agentResponseSchema = z.object({
-  tool_calls: z
-    .array(z.object({ name: z.string(), arguments: z.unknown() }))
-    .optional()
-    .default([]),
+  tool_calls: z.array(toolCallSchema).optional(),
+  choices: z
+    .array(z.object({ message: z.object({ tool_calls: z.array(toolCallSchema).optional() }) }))
+    .optional(),
   usage: z.object({ total_tokens: z.number() }).partial().optional(),
 });
 
@@ -55,7 +71,7 @@ export async function routeQuery(
   const start = Date.now();
   const tools = buildAgentTools(options.allowClarification);
   const messages: ChatMessage[] = [
-    { role: 'system', content: AGENT_SYSTEM_PROMPT },
+    { role: 'system', content: buildSystemPrompt(query) },
     { role: 'user', content: query },
   ];
 
@@ -113,21 +129,33 @@ async function callAgent(
   messages: ChatMessage[],
   tools: ReturnType<typeof buildAgentTools>,
 ): Promise<RawCall> {
+  // glm-4.7-flash exposes the OpenAI chat-completions schema: `tool_choice`
+  // only accepts none/auto/required. Reasoning must be off to stay inside the
+  // 3 s decision budget (docs/05 §4) — `thinking` is GLM's documented switch,
+  // `chat_template_kwargs` the vLLM-style fallback; both are accepted.
   const raw = await aiRun(env, MODELS.agent, {
     messages,
     tools,
-    tool_choice: 'any',
+    tool_choice: 'required',
     temperature: 0.1,
-    max_tokens: 256,
+    max_completion_tokens: 256,
+    thinking: { type: 'disabled' },
+    chat_template_kwargs: { enable_thinking: false },
   });
   const parsed = agentResponseSchema.safeParse(raw);
   if (!parsed.success) return { name: null, args: undefined, tokensUsed: null };
-  const call = parsed.data.tool_calls[0];
+
+  const call = parsed.data.tool_calls?.[0] ?? parsed.data.choices?.[0]?.message.tool_calls?.[0];
+  const flat = call === undefined ? undefined : flattenToolCall(call);
   return {
-    name: call?.name ?? null,
-    args: call?.arguments,
+    name: flat?.name ?? null,
+    args: flat?.arguments,
     tokensUsed: parsed.data.usage?.total_tokens ?? null,
   };
+}
+
+function flattenToolCall(call: ToolCall): { name: string; arguments: unknown } {
+  return 'function' in call ? call.function : call;
 }
 
 type ParseResult = { ok: true; tool: AgentToolName; value: unknown } | { ok: false; error: string };

@@ -4,8 +4,10 @@
 // seed/<slug>.<ext>, so re-running updates rather than duplicates.
 //
 // Usage:
-//   API_URL=http://localhost:8787 SEED_KEY=... node scripts/seed.mjs
-// (pnpm seed reads API_URL/SEED_KEY from the environment; see docs/09-setup-guide.md)
+//   pnpm seed
+// Configuration comes from the environment (API_URL, SEED_KEY) with a fallback
+// to apps/api/.dev.vars, so the same secret configured for the Worker also
+// authorizes local seeding (see docs/09-setup-guide.md).
 
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -13,8 +15,8 @@ import { dirname, extname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const IMAGES_DIR = join(HERE, '..', 'test-dataset', 'images');
-const API_URL = process.env.API_URL ?? 'http://localhost:8787';
-const SEED_KEY = process.env.SEED_KEY;
+const DEV_VARS_PATH = join(HERE, '..', 'apps', 'api', '.dev.vars');
+const DEFAULT_API_URL = 'http://localhost:8787';
 
 const MIME = {
   '.jpg': 'image/jpeg',
@@ -23,10 +25,36 @@ const MIME = {
   '.webp': 'image/webp',
 };
 
+/** Parse a dotenv-style file (`KEY=value` / `KEY="value"`, `#` comments). */
+async function readDevVars(path) {
+  let content;
+  try {
+    content = await readFile(path, 'utf8');
+  } catch {
+    return {};
+  }
+  const vars = {};
+  for (const line of content.split('\n')) {
+    const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
+    if (!match) continue;
+    vars[match[1]] = match[2].replace(/^["']|["']$/g, '');
+  }
+  return vars;
+}
+
+async function resolveConfig() {
+  const devVars = await readDevVars(DEV_VARS_PATH);
+  return {
+    apiUrl: process.env.API_URL ?? devVars.API_URL ?? DEFAULT_API_URL,
+    seedKey: process.env.SEED_KEY ?? devVars.SEED_KEY,
+  };
+}
+
 async function main() {
-  if (!SEED_KEY) {
+  const { apiUrl, seedKey } = await resolveConfig();
+  if (!seedKey) {
     console.error(
-      'SEED_KEY is required. Set it to the value configured on the Worker (wrangler secret put SEED_KEY).',
+      'SEED_KEY is required. Set it in apps/api/.dev.vars (used by both the Worker and this script), or export it in the environment.',
     );
     process.exit(1);
   }
@@ -48,7 +76,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Seeding ${files.length} image(s) → ${API_URL}\n`);
+  console.log(`Seeding ${files.length} image(s) → ${apiUrl}\n`);
   let ok = 0;
   for (const file of files) {
     const slug = file.slice(0, -extname(file).length);
@@ -60,9 +88,9 @@ async function main() {
     form.append('slug', slug);
 
     try {
-      const res = await fetch(`${API_URL}/api/v1/images`, {
+      const res = await fetch(`${apiUrl}/api/v1/images`, {
         method: 'POST',
-        headers: { 'x-seed-key': SEED_KEY },
+        headers: { 'x-seed-key': seedKey },
         body: form,
       });
       if (res.ok) {

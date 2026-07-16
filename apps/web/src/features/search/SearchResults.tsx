@@ -1,25 +1,26 @@
 import {
   type AgentAction,
+  RETRIEVAL,
   type SearchResponse,
   type SearchResultItem,
   type SearchTelemetry,
 } from '@picsearch/shared';
 
+import { formatScore } from '../../lib/format.js';
 import { MetadataInspector } from '../gallery/MetadataInspector.js';
 import { ClarificationPrompt } from './ClarificationPrompt.js';
 import { ROUTE_STYLES } from './routeStyles.js';
+
+interface SearchResultsProps {
+  response: SearchResponse;
+  onClarify: (answer: string) => void;
+}
 
 /**
  * Renders a search outcome. Switches exhaustively on the discriminated union
  * `kind` (docs/08) — the `never` default makes adding a new kind a compile error.
  */
-export function SearchResults({
-  response,
-  onClarify,
-}: {
-  response: SearchResponse;
-  onClarify: (answer: string) => void;
-}) {
+export function SearchResults({ response, onClarify }: SearchResultsProps) {
   switch (response.kind) {
     case 'results':
       return (
@@ -42,13 +43,13 @@ export function SearchResults({
                 </span>
                 {response.telemetry.rerankSkipped && (
                   <span className="font-mono text-[11px] text-route-fallback">
-                    rerank skipped → RRF order
+                    Rerank skipped → RRF order
                   </span>
                 )}
               </div>
               {response.results.length === 0 ? (
                 <p className="border border-line-2 bg-surface p-6 text-center font-mono text-xs text-dim">
-                  no matches found
+                  No matches found
                 </p>
               ) : (
                 <ul className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
@@ -73,12 +74,14 @@ export function SearchResults({
   }
 }
 
-function DecisionPanel(props: {
+interface DecisionPanelProps {
   action: AgentAction;
   resolvedQueries: string[];
   decisionMs: number;
-}) {
-  const style = ROUTE_STYLES[props.action];
+}
+
+function DecisionPanel({ action, resolvedQueries, decisionMs }: DecisionPanelProps) {
+  const style = ROUTE_STYLES[action];
   return (
     <div
       className={`flex flex-wrap items-stretch border border-line-2 border-t-2 bg-surface ${style.borderTop}`}
@@ -90,14 +93,14 @@ function DecisionPanel(props: {
         >
           {style.label}
         </span>
-        <span className="font-mono text-[11px] text-dim">→ {props.decisionMs}ms · agent</span>
+        <span className="font-mono text-[11px] text-dim">→ {decisionMs}ms · agent</span>
       </div>
       <div className="flex flex-1 flex-col justify-center gap-2.5 px-5 py-4">
         <span className="font-mono text-[11px] text-dim">
-          {props.action === 'decompose' ? 'split into →' : 'resolved query →'}
+          {action === 'decompose' ? 'split into →' : 'resolved query →'}
         </span>
         <div className="flex flex-wrap gap-2">
-          {props.resolvedQueries.map((q, i) => (
+          {resolvedQueries.map((q, i) => (
             <code
               key={`${q}-${String(i)}`}
               className="border border-line-2 bg-elevated px-2.5 py-1.5 font-mono text-xs text-accent-bright"
@@ -111,29 +114,35 @@ function DecisionPanel(props: {
   );
 }
 
-function PipelineTrace({
-  action,
-  telemetry,
-  subQueryCount,
-}: {
+interface PipelineTraceProps {
   action: AgentAction;
   telemetry: SearchTelemetry;
   subQueryCount: number;
-}) {
-  const stages: { label: string; sub: string; ms?: number }[] = [
+}
+
+interface TraceStage {
+  label: string;
+  sub: string;
+  ms?: number;
+}
+
+function PipelineTrace({ action, telemetry, subQueryCount }: PipelineTraceProps) {
+  const stages: TraceStage[] = [
     { label: 'User query', sub: 'raw input' },
     { label: 'Orchestrator', sub: ROUTE_STYLES[action].label, ms: telemetry.agentDecisionMs },
     {
       label: subQueryCount > 1 ? `hybrid_search ×${String(subQueryCount)}` : 'hybrid_search',
-      sub: 'RRF · top 15',
+      sub: `RRF · top ${String(RETRIEVAL.candidateCount)}`,
       ms: telemetry.vectorSearchMs,
     },
     {
       label: 'Cross-encoder',
-      sub: telemetry.rerankSkipped ? 'skipped' : 'rerank 15→5',
+      sub: telemetry.rerankSkipped
+        ? 'skipped'
+        : `rerank ${String(RETRIEVAL.candidateCount)}→${String(RETRIEVAL.resultCount)}`,
       ms: telemetry.rerankMs,
     },
-    { label: 'Top 5', sub: 'to UI' },
+    { label: `Top ${String(RETRIEVAL.resultCount)}`, sub: 'to UI' },
   ];
 
   return (
@@ -159,7 +168,12 @@ function PipelineTrace({
   );
 }
 
-function ResultCard({ item, rank }: { item: SearchResultItem; rank: number }) {
+interface ResultCardProps {
+  item: SearchResultItem;
+  rank: number;
+}
+
+function ResultCard({ item, rank }: ResultCardProps) {
   return (
     <li className="overflow-hidden border border-line-2 bg-surface">
       <div className="relative">
@@ -169,11 +183,14 @@ function ResultCard({ item, rank }: { item: SearchResultItem; rank: number }) {
           loading="lazy"
           className="aspect-[4/3] w-full object-cover"
         />
-        <span className="absolute left-0 top-0 bg-accent px-2 py-1 font-mono text-[11px] font-semibold text-[#05130c]">
+        <span className="absolute left-0 top-0 bg-accent px-2 py-1 font-mono text-[11px] font-semibold text-ink">
           #{rank}
         </span>
-        <span className="absolute right-0 top-0 bg-bg px-2 py-1 font-mono text-[11px] font-semibold text-fg-2">
-          {item.score.toFixed(3)}
+        <span
+          title="Cross-encoder relevance (RRF score when rerank is skipped)"
+          className="absolute right-0 top-0 bg-bg px-2 py-1 font-mono text-[11px] font-semibold text-fg-2"
+        >
+          {formatScore(item.score)}
         </span>
       </div>
       <div className="border-t border-line p-3">
@@ -187,7 +204,14 @@ function ResultCard({ item, rank }: { item: SearchResultItem; rank: number }) {
   );
 }
 
-const RAIL_STAGES: { key: keyof SearchTelemetry; label: string; fill: string; swatch: string }[] = [
+interface RailStage {
+  key: keyof SearchTelemetry;
+  label: string;
+  fill: string;
+  swatch: string;
+}
+
+const RAIL_STAGES: RailStage[] = [
   { key: 'agentDecisionMs', label: 'Agent decision', fill: 'fill-accent', swatch: 'bg-accent' },
   { key: 'embeddingMs', label: 'Embedding', fill: 'fill-faint', swatch: 'bg-faint' },
   {
@@ -199,7 +223,12 @@ const RAIL_STAGES: { key: keyof SearchTelemetry; label: string; fill: string; sw
   { key: 'rerankMs', label: 'Cross-encoder', fill: 'fill-pos', swatch: 'bg-pos' },
 ];
 
-function TelemetryRail({ action, telemetry }: { action: AgentAction; telemetry: SearchTelemetry }) {
+interface TelemetryRailProps {
+  action: AgentAction;
+  telemetry: SearchTelemetry;
+}
+
+function TelemetryRail({ action, telemetry }: TelemetryRailProps) {
   const total = Math.max(telemetry.executionTimeMs, 1);
   let x = 0;
   return (

@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { getBenchmark, startBenchmark } from '../../lib/api.js';
+import { QUERY_KEYS } from '../../lib/queryKeys.js';
 
 /**
  * Benchmark lifecycle (FR-13): start a run, then poll its status until done.
@@ -19,7 +20,7 @@ export function useBenchmark() {
   });
 
   const status = useQuery({
-    queryKey: ['benchmark', runId],
+    queryKey: QUERY_KEYS.benchmark(runId),
     enabled: runId !== null,
     queryFn: () => {
       if (runId === null) throw new Error('no active benchmark run');

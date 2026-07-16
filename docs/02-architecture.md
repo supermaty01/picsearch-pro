@@ -87,7 +87,8 @@ sequenceDiagram
 
 - LLM output is untrusted: vision JSON and agent tool calls are Zod-parsed; one retry with error feedback, then fail with a typed error (NFR-4).
 - Every stage wrapped in a `timed()` helper that feeds telemetry and structured logs.
-- AI Gateway provides caching and retry; Worker adds a per-stage timeout budget (agent 3 s, rerank 3 s, total 10 s).
+- AI Gateway provides caching and retry; Worker adds a per-stage timeout budget (agent 5 s, rerank 3 s, total 10 s).
+- Rerank latency: the cross-encoder scores a compact purpose-built document (`buildRerankContext`: scene, style, setting, objects, keywords — capped at `RETRIEVAL.rerankContextChars`) instead of the full `dense_context` (cross-encoder cost is quadratic in length). Decomposed sub-queries embed + retrieve concurrently.
 - Degradation ladder: reranker fails → return RRF order (flagged in response); agent fails → fall back to `search_direct`. Search never hard-fails because an optional layer did.
 
 ## 7. Security model

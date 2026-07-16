@@ -28,6 +28,8 @@
   --color-accent-dim: #2a8f5c;
   --color-accent-bright: #7ff0b3;
   --color-pos: #5ff0a5;
+  /* Near-black foreground used on top of accent-filled surfaces. */
+  --color-ink: #05130c;
 
   /* Orchestrator route colors (docs/05). */
   --color-route-direct: #46e08a;

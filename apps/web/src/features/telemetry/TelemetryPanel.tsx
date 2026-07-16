@@ -5,6 +5,7 @@ import { Spinner } from '../../components/Spinner.js';
 import { ViewHeading } from '../../components/ViewHeading.js';
 import { AgentDecisionBadge } from '../search/AgentDecisionBadge.js';
 import { listTelemetry } from '../../lib/api.js';
+import { QUERY_KEYS } from '../../lib/queryKeys.js';
 
 const STAGES: { key: keyof TelemetryRecord; label: string; swatch: string; fill: string }[] = [
   { key: 'agentDecisionMs', label: 'Agent', swatch: 'bg-accent', fill: 'fill-accent' },
@@ -16,7 +17,7 @@ const STAGES: { key: keyof TelemetryRecord; label: string; swatch: string; fill:
 /** Live per-query telemetry with a latency waterfall (FR-11, FR-12). */
 export function TelemetryPanel() {
   const telemetry = useQuery({
-    queryKey: ['telemetry'],
+    queryKey: QUERY_KEYS.telemetry,
     queryFn: () => listTelemetry(25),
     refetchInterval: 5000,
   });
@@ -39,9 +40,9 @@ export function TelemetryPanel() {
       </div>
 
       {telemetry.isPending ? (
-        <Spinner label="loading telemetry" />
+        <Spinner label="Loading telemetry" />
       ) : telemetry.isError ? (
-        <p className="font-mono text-xs text-route-fallback">could not load telemetry.</p>
+        <p className="font-mono text-xs text-route-fallback">Could not load telemetry.</p>
       ) : telemetry.data.items.length === 0 ? (
         <p className="border border-line-2 bg-surface p-6 text-center font-mono text-xs text-dim">
           No searches yet. Run a search to see per-stage latency here.
@@ -89,7 +90,7 @@ function TelemetryRow({ row }: { row: TelemetryRecord }) {
       </svg>
       {row.rerankSkipped && (
         <p className="mt-1 font-mono text-[11px] text-route-fallback">
-          reranker skipped — degraded to RRF order
+          Reranker skipped — degraded to RRF order
         </p>
       )}
     </li>

@@ -182,7 +182,15 @@ The benchmark needs a known set of images. You supply ~15 license-safe images.
 2. **Run the seeder** against your running Worker:
 
    ```bash
-   SEED_KEY="pick-any-random-string" API_URL="http://localhost:8787" pnpm seed
+   pnpm seed
+   ```
+
+   The script reads `SEED_KEY`/`API_URL` from the environment, falling back to
+   `apps/api/.dev.vars` — so the key you already configured for the Worker is
+   enough. To seed a deployed Worker, override the target:
+
+   ```bash
+   SEED_KEY="prod-secret" API_URL="https://your-worker.workers.dev" pnpm seed
    ```
 
    It ingests each image through the **real** pipeline (vision → dense context →
@@ -202,7 +210,7 @@ The benchmark needs a known set of images. You supply ~15 license-safe images.
 | `health` shows `db: false`               | Wrong `SUPABASE_URL`/key, or migrations not applied.                                   |
 | `health` shows `storage: false`          | `0002_storage.sql` not applied (no `images` bucket).                                   |
 | Upload returns `422`                     | Vision model output failed validation twice — usually a transient model hiccup; retry. |
-| `pnpm seed` says "SEED_KEY is required"  | Export `SEED_KEY` (and set the same value in `.dev.vars`).                             |
+| `pnpm seed` says "SEED_KEY is required"  | Set `SEED_KEY` in `apps/api/.dev.vars` (the script reads it) or export it.             |
 | Search is slow the first time            | Cold model calls; AI Gateway caches repeats. Direct-route p50 target is < 1.5 s.       |
 | `wrangler dev` can't find the AI binding | Run `wrangler login`; the `AI` binding needs an authenticated account.                 |
 

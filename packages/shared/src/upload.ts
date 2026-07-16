@@ -17,6 +17,12 @@ export const MIME_EXTENSION: Record<string, string> = {
   'image/webp': 'webp',
 };
 
+/**
+ * Storage folder for deterministic benchmark uploads (FR-15). The seeder writes
+ * `seed/<slug>.<ext>`; the benchmark maps row ids back to slugs by this prefix.
+ */
+export const SEED_STORAGE_PREFIX = 'seed';
+
 export function isAllowedMimeType(mime: string): boolean {
   return (UPLOAD_LIMITS.allowedMimeTypes as readonly string[]).includes(mime);
 }

@@ -1,5 +1,5 @@
 /** Accessible loading indicator (console styling). */
-export function Spinner({ label = 'loading' }: { label?: string }) {
+export function Spinner({ label = 'Loading' }: { label?: string }) {
   return (
     <span className="inline-flex items-center gap-2 font-mono text-xs text-dim" role="status">
       <span

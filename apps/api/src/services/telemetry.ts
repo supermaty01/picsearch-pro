@@ -2,7 +2,7 @@ import { type AgentAction, type TelemetryListResponse } from '@picsearch/shared'
 
 import { type Env } from '../env.js';
 import { UpstreamError } from '../lib/problem.js';
-import { createSupabase } from '../lib/supabase.js';
+import { createSupabase, type DbResult } from '../lib/supabase.js';
 
 /**
  * Query telemetry persistence (FR-11) and read-back (FR-12). Writes are
@@ -51,10 +51,7 @@ export async function listTelemetry(env: Env, limit: number): Promise<TelemetryL
     .from('query_telemetry')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(limit)) as {
-    data: Record<string, unknown>[] | null;
-    error: { message: string } | null;
-  };
+    .limit(limit)) as DbResult<Record<string, unknown>[]>;
 
   if (error) throw new UpstreamError(`telemetry listing failed: ${error.message}`);
 

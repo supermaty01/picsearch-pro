@@ -7,7 +7,7 @@ import {
 
 import { type Env } from '../env.js';
 import { UpstreamError } from '../lib/problem.js';
-import { createSupabase, STORAGE_BUCKET } from '../lib/supabase.js';
+import { createSupabase, type DbResult, STORAGE_BUCKET } from '../lib/supabase.js';
 import { embed } from './embedding.js';
 import { extractMetadata } from './vision.js';
 
@@ -99,7 +99,7 @@ async function upsertImageRow(
       { onConflict: 'storage_path' },
     )
     .select('id')
-    .single()) as { data: { id: string } | null; error: { message: string } | null };
+    .single()) as DbResult<{ id: string }>;
 
   if (error || !data) {
     throw new UpstreamError(`Row upsert failed: ${error?.message ?? 'no row returned'}`);

@@ -1,4 +1,9 @@
-import { isAllowedMimeType, MIME_EXTENSION, UPLOAD_LIMITS } from '@picsearch/shared';
+import {
+  isAllowedMimeType,
+  MIME_EXTENSION,
+  SEED_STORAGE_PREFIX,
+  UPLOAD_LIMITS,
+} from '@picsearch/shared';
 import { Hono } from 'hono';
 
 import { type AppBindings } from '../types.js';
@@ -37,7 +42,7 @@ function seedPath(
   const safe = slug.replace(/[^a-z0-9-]/gi, '').toLowerCase();
   if (safe.length === 0) return undefined;
   const ext = MIME_EXTENSION[mimeType] ?? 'bin';
-  return `seed/${safe}.${ext}`;
+  return `${SEED_STORAGE_PREFIX}/${safe}.${ext}`;
 }
 
 images.post('/', rateLimit({ limit: 30, windowMs: 60_000 }), async (c) => {

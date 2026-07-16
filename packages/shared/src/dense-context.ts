@@ -10,6 +10,24 @@ import { type ImageMetadata } from './image-metadata.js';
  * captured (scene, setting, objects, notable details, time, season, keywords)
  * to maximize what a free-text query can match. Keep it deterministic and pure.
  */
+/**
+ * Compact document the cross-encoder scores against a query (FR-9). Unlike the
+ * embedded dense_context — whose most discriminative fields (photographic
+ * style, keywords) sit at the END and would be lost to any length cap — this
+ * keeps only what queries actually reference and front-loads it: scene, style,
+ * setting, objects, keywords. Colors/weather/season are dropped: they add
+ * length (= quadratic rerank cost) but rarely decide relevance.
+ */
+export function buildRerankContext(metadata: ImageMetadata): string {
+  return [
+    metadata.scene_description,
+    `Style: ${metadata.photographic_style}`,
+    `Setting: ${metadata.setting}`,
+    `Objects: ${metadata.objects.join(', ')}`,
+    `Keywords: ${metadata.keywords.join(', ')}`,
+  ].join('. ');
+}
+
 export function buildDenseContext(metadata: ImageMetadata): string {
   const parts = [
     `Scene: ${metadata.scene_description}`,

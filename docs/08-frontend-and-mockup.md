@@ -18,15 +18,18 @@ A visual mockup exists in Claude Design: **`PicSearch Pro.dc.html`**
 
 ```
 <App>
- ├─ <Header/>                     brand + nav (Gallery · Evaluation · Telemetry)
+ ├─ <Header/>                     brand + nav (Overview · Search · Gallery · Evaluation · Telemetry)
+ ├─ <OverviewView/>               default view: explains the pipeline, agent routes, stack
  ├─ <SearchBar/>                  query input, submit state, clarification follow-up mode
- ├─ <GalleryView/>                default view
+ ├─ <SearchProgress/>             animated pipeline stages while a search is in flight
+ ├─ <GalleryView/>
  │   ├─ <UploadDropzone/>         FR-1, progress + per-stage status
  │   └─ <ImageGrid/> → <ImageCard/> → <MetadataInspector/>  (JSON viewer, FR-12)
  ├─ <SearchResults/>              top-5 cards with scores; <AgentDecisionBadge/> (route taken)
  │   └─ <ClarificationPrompt/>    rendered when kind === "clarification"
  ├─ <TelemetryPanel/>             latency waterfall per stage (FR-12)
- └─ <EvaluationView/>             benchmark runner + <BenchmarkChart/> (A–D, C vs D highlight)
+ └─ <EvaluationView/>             benchmark runner + <BenchmarkChart/> (A–D, C vs D highlight,
+                                  metric legend + per-strategy layer chips)
 ```
 
 ## 3. Frontend conventions

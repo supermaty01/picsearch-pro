@@ -60,7 +60,7 @@ export function UploadDropzone() {
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={upload.isPending}
-          className="border border-accent-dim bg-accent px-4 py-2 font-display text-sm font-bold text-[#05130c] hover:bg-accent-bright disabled:opacity-50"
+          className="border border-accent-dim bg-accent px-4 py-2 font-display text-sm font-bold text-ink hover:bg-accent-bright disabled:opacity-50"
         >
           Choose file
         </button>
@@ -80,13 +80,13 @@ export function UploadDropzone() {
       </div>
 
       <div aria-live="polite" className="min-h-6 px-4 pb-3 font-mono text-xs">
-        {upload.isPending && <Spinner label="analyzing & indexing" />}
+        {upload.isPending && <Spinner label="Analyzing & indexing" />}
         {(clientError ?? serverError) && (
           <p className="text-route-fallback">{clientError ?? serverError}</p>
         )}
         {upload.isSuccess && (
           <p className="text-pos">
-            indexed in {upload.data.timings.totalMs}ms (vision {upload.data.timings.visionMs}ms ·
+            Indexed in {upload.data.timings.totalMs}ms (vision {upload.data.timings.visionMs}ms ·
             embedding {upload.data.timings.embeddingMs}ms)
           </p>
         )}

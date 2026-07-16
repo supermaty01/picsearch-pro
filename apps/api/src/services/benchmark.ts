@@ -3,31 +3,41 @@ import {
   type BenchmarkReport,
   type BenchmarkStatusResponse,
   benchmarkReportSchema,
+  DEFAULT_WEIGHTS,
   type GroundTruthQuery,
   groundTruthSchema,
   type PerQueryResult,
   queryMetrics,
   RETRIEVAL,
+  SEED_STORAGE_PREFIX,
   STRATEGY_IDS,
   STRATEGY_LABELS,
   type StrategyId,
   type StrategyReport,
+  VECTOR_ONLY_WEIGHTS,
 } from '@picsearch/shared';
 
 import groundTruthJson from '../../../../test-dataset/ground-truth.json';
 import { type Env } from '../env.js';
 import { NotFoundError, RateLimitedError, UpstreamError } from '../lib/problem.js';
-import { createSupabase } from '../lib/supabase.js';
+import { createSupabase, type DbCountResult, type DbResult } from '../lib/supabase.js';
 import { routeQuery } from '../agent/orchestrator.js';
-import { type Candidate, DEFAULT_WEIGHTS, VECTOR_ONLY_WEIGHTS } from './hybrid-search.js';
+import { type Candidate } from './hybrid-search.js';
 import { rerank } from './rerank.js';
-import { retrieve } from './search.js';
+import { rerankQueryFor, retrieve } from './search.js';
 
 /** Ground truth is bundled and validated once at module load (fail fast). */
 const GROUND_TRUTH = groundTruthSchema.parse(groundTruthJson);
 
 /** At most 2 concurrent benchmark runs (docs/04 §Rate limits). */
 const MAX_CONCURRENT_RUNS = 2;
+
+/** `benchmark_runs.status` values (docs/03). */
+const RUN_STATUS = {
+  running: 'running',
+  done: 'done',
+  error: 'error',
+} as const;
 
 /**
  * Start a benchmark run (FR-13): reserve a row and return its id. The heavy work
@@ -40,7 +50,7 @@ export async function startBenchmark(env: Env, strategies: StrategyId[]): Promis
   const running = (await supabase
     .from('benchmark_runs')
     .select('id', { head: true, count: 'exact' })
-    .eq('status', 'running')) as { count: number | null; error: { message: string } | null };
+    .eq('status', RUN_STATUS.running)) as DbCountResult;
   if (running.error) throw new UpstreamError(`benchmark check failed: ${running.error.message}`);
   if ((running.count ?? 0) >= MAX_CONCURRENT_RUNS) {
     throw new RateLimitedError('Too many benchmark runs in progress. Try again shortly.');
@@ -48,9 +58,9 @@ export async function startBenchmark(env: Env, strategies: StrategyId[]): Promis
 
   const { data, error } = (await supabase
     .from('benchmark_runs')
-    .insert({ status: 'running', strategies, progress: 0 })
+    .insert({ status: RUN_STATUS.running, strategies, progress: 0 })
     .select('id')
-    .single()) as { data: { id: string } | null; error: { message: string } | null };
+    .single()) as DbResult<{ id: string }>;
   if (error || !data)
     throw new UpstreamError(`benchmark start failed: ${error?.message ?? 'no row'}`);
   return data.id;
@@ -83,11 +93,14 @@ export async function runBenchmark(
     };
     await supabase
       .from('benchmark_runs')
-      .update({ status: 'done', progress: 1, report })
+      .update({ status: RUN_STATUS.done, progress: 1, report })
       .eq('id', runId);
   } catch (err) {
     const detail = err instanceof Error ? err.message : 'unknown error';
-    await supabase.from('benchmark_runs').update({ status: 'error', detail }).eq('id', runId);
+    await supabase
+      .from('benchmark_runs')
+      .update({ status: RUN_STATUS.error, detail })
+      .eq('id', runId);
   }
 }
 
@@ -97,17 +110,19 @@ export async function getBenchmark(env: Env, runId: string): Promise<BenchmarkSt
     .from('benchmark_runs')
     .select('status, progress, report, detail')
     .eq('id', runId)
-    .maybeSingle()) as {
-    data: { status: string; progress: number; report: unknown; detail: string | null } | null;
-    error: { message: string } | null;
-  };
+    .maybeSingle()) as DbResult<{
+    status: string;
+    progress: number;
+    report: unknown;
+    detail: string | null;
+  }>;
   if (error) throw new UpstreamError(`benchmark lookup failed: ${error.message}`);
   if (!data) throw new NotFoundError(`No benchmark run with id ${runId}.`);
 
-  if (data.status === 'done') {
+  if (data.status === RUN_STATUS.done) {
     return { status: 'done', results: benchmarkReportSchema.parse(data.report) };
   }
-  if (data.status === 'error') {
+  if (data.status === RUN_STATUS.error) {
     return { status: 'error', detail: data.detail ?? 'Benchmark failed.' };
   }
   return { status: 'running', progress: data.progress };
@@ -180,7 +195,8 @@ async function evaluateStrategy(
         clarified = true;
       } else {
         const r = await retrieve(env, agent.decision.queries, DEFAULT_WEIGHTS);
-        candidates = (await rerank(env, query.query, r.candidates)).results;
+        const rerankQuery = rerankQueryFor(query.query, agent.decision.queries);
+        candidates = (await rerank(env, rerankQuery, r.candidates)).results;
       }
       break;
     }
@@ -223,15 +239,16 @@ async function loadSeedMap(env: Env): Promise<Map<string, string>> {
   const { data, error } = (await supabase
     .from('images')
     .select('id, storage_path')
-    .like('storage_path', 'seed/%')) as {
-    data: { id: string; storage_path: string }[] | null;
-    error: { message: string } | null;
-  };
+    .like('storage_path', `${SEED_STORAGE_PREFIX}/%`)) as DbResult<
+    { id: string; storage_path: string }[]
+  >;
   if (error) throw new UpstreamError(`seed map load failed: ${error.message}`);
 
   const map = new Map<string, string>();
   for (const row of data ?? []) {
-    const slug = row.storage_path.replace(/^seed\//, '').replace(/\.[^.]+$/, '');
+    const slug = row.storage_path
+      .replace(new RegExp(`^${SEED_STORAGE_PREFIX}/`), '')
+      .replace(/\.[^.]+$/, '');
     map.set(row.id, slug);
   }
   return map;

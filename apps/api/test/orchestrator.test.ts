@@ -62,6 +62,59 @@ describe('routeQuery (FR-7 routes)', () => {
     expect(out.decision).toEqual({ kind: 'clarification', question: 'Beach, mountains, or city?' });
   });
 
+  it('parses OpenAI chat-completions tool calls (glm-4.7-flash shape)', async () => {
+    const run = vi.fn(() => ({
+      choices: [
+        {
+          message: {
+            tool_calls: [
+              {
+                id: 'call_1',
+                type: 'function',
+                function: {
+                  name: 'search_reformulated',
+                  arguments: '{"reformulatedQuery":"eiffel tower at night"}',
+                },
+              },
+            ],
+          },
+        },
+      ],
+      usage: { total_tokens: 42 },
+    }));
+    const out = await routeQuery(makeEnv(run), 'eifel towr nite');
+    expect(out.action).toBe('reformulate');
+    expect(out.decision).toEqual({ kind: 'search', queries: ['eiffel tower at night'] });
+    expect(out.tokensUsed).toBe(42);
+  });
+
+  it('sends an OpenAI-compatible request (valid tool_choice, no reasoning)', async () => {
+    const run = vi.fn((_model: string, _input: unknown) => ({
+      tool_calls: [{ name: 'search_direct', arguments: {} }],
+    }));
+    await routeQuery(makeEnv(run), 'red car');
+    const input = run.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(input.tool_choice).toBe('required');
+    expect(input.max_completion_tokens).toBeDefined();
+    expect(input.thinking).toEqual({ type: 'disabled' });
+    expect(input.chat_template_kwargs).toEqual({ enable_thinking: false });
+  });
+
+  it('adds a decompose router hint when the query has a multi-subject connector', async () => {
+    const run = vi.fn((_model: string, input: unknown) => {
+      const { messages } = input as { messages: { role: string; content: string }[] };
+      const system = messages[0]?.content ?? '';
+      const name = system.includes('Router hint') ? 'search_decomposed' : 'search_direct';
+      const args = name === 'search_decomposed' ? { subQueries: ['a scene', 'b scene'] } : {};
+      return { tool_calls: [{ name, arguments: args }] };
+    });
+    const out = await routeQuery(makeEnv(run), 'a snowman but also a tropical beach');
+    expect(out.action).toBe('decompose');
+
+    const plain = await routeQuery(makeEnv(run), 'a snowman in the snow');
+    expect(plain.action).toBe('direct');
+  });
+
   it('parses tool arguments delivered as a JSON string', async () => {
     const out = await routeQuery(
       agentEnv([{ name: 'search_reformulated', arguments: '{"reformulatedQuery":"clean query"}' }]),

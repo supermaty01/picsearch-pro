@@ -1,4 +1,4 @@
-import { MODELS, RETRIEVAL } from '@picsearch/shared';
+import { buildRerankContext, MODELS, RETRIEVAL } from '@picsearch/shared';
 import { z } from 'zod';
 
 import { type Env } from '../env.js';
@@ -47,9 +47,15 @@ async function scoreAndOrder(
   query: string,
   candidates: Candidate[],
 ): Promise<RerankOutcome> {
+  // The cross-encoder scores a purpose-built compact document, not the full
+  // dense_context: shorter input (quadratic cost) without losing the
+  // discriminative style/keywords fields that sit at the END of dense_context.
   const raw = await aiRun(env, MODELS.reranker, {
     query,
-    contexts: candidates.map((c) => ({ text: c.denseContext })),
+    contexts: candidates.map((c) => ({
+      text: buildRerankContext(c.metadata).slice(0, RETRIEVAL.rerankContextChars),
+    })),
+    top_k: RETRIEVAL.resultCount,
   });
 
   const parsed = rerankResponseSchema.safeParse(raw);

@@ -1,8 +1,14 @@
-import { imageMetadataSchema, type ImageMetadata, RETRIEVAL } from '@picsearch/shared';
+import {
+  DEFAULT_WEIGHTS,
+  imageMetadataSchema,
+  type ImageMetadata,
+  RETRIEVAL,
+  type SearchWeights,
+} from '@picsearch/shared';
 
 import { type Env } from '../env.js';
 import { UpstreamError } from '../lib/problem.js';
-import { createSupabase } from '../lib/supabase.js';
+import { createSupabase, type DbResult } from '../lib/supabase.js';
 
 /** A retrieval candidate (pre- or post-rerank). `score` is RRF or rerank score. */
 export interface Candidate {
@@ -13,20 +19,22 @@ export interface Candidate {
   score: number;
 }
 
-/** Weights select the benchmark strategy over ONE SQL code path (ADR-0003). */
-export interface SearchWeights {
-  vectorWeight: number;
-  keywordWeight: number;
+export interface HybridSearchParams {
+  embedding: number[];
+  queryText: string;
+  weights?: SearchWeights;
 }
 
-export const DEFAULT_WEIGHTS: SearchWeights = { vectorWeight: 0.5, keywordWeight: 0.5 };
-/** Strategy A (vector only): keyword_weight => 0. */
-export const VECTOR_ONLY_WEIGHTS: SearchWeights = { vectorWeight: 1, keywordWeight: 0 };
+/** One row returned by the `hybrid_search` SQL function (snake_case, PostgREST). */
+interface HybridSearchRow {
+  id: string;
+  image_url: string;
+  structured_metadata: unknown;
+  dense_context: string;
+  combined_score: number;
+}
 
-export async function hybridSearch(
-  env: Env,
-  params: { embedding: number[]; queryText: string; weights?: SearchWeights },
-): Promise<Candidate[]> {
+export async function hybridSearch(env: Env, params: HybridSearchParams): Promise<Candidate[]> {
   const supabase = createSupabase(env);
   const weights = params.weights ?? DEFAULT_WEIGHTS;
 
@@ -37,18 +45,7 @@ export async function hybridSearch(
     vector_weight: weights.vectorWeight,
     keyword_weight: weights.keywordWeight,
     rrf_k: RETRIEVAL.rrfK,
-  })) as {
-    data:
-      | {
-          id: string;
-          image_url: string;
-          structured_metadata: unknown;
-          dense_context: string;
-          combined_score: number;
-        }[]
-      | null;
-    error: { message: string } | null;
-  };
+  })) as DbResult<HybridSearchRow[]>;
 
   if (error) {
     throw new UpstreamError(`hybrid_search failed: ${error.message}`);

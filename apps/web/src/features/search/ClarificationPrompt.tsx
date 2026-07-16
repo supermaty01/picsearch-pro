@@ -1,16 +1,15 @@
 import { useState } from 'react';
 
+interface ClarificationPromptProps {
+  question: string;
+  onAnswer: (answer: string) => void;
+}
+
 /**
  * Rendered when the agent chose `ask_for_context` (FR-7). The answer is
  * concatenated with the original query and re-searched (one round, docs/05 §4).
  */
-export function ClarificationPrompt({
-  question,
-  onAnswer,
-}: {
-  question: string;
-  onAnswer: (answer: string) => void;
-}) {
+export function ClarificationPrompt({ question, onAnswer }: ClarificationPromptProps) {
   const [answer, setAnswer] = useState('');
 
   return (
@@ -42,7 +41,7 @@ export function ClarificationPrompt({
         <div>
           <div className="text-base font-bold text-fg-2">The agent paused to ask a question</div>
           <div className="font-mono text-[11px] text-muted">
-            query too vague to retrieve precisely — no search spent
+            Query too vague to retrieve precisely — no search spent
           </div>
         </div>
       </div>
@@ -64,12 +63,12 @@ export function ClarificationPrompt({
             onChange={(e) => {
               setAnswer(e.target.value);
             }}
-            placeholder="add a detail…"
+            placeholder="Add a detail…"
             className="flex-1 border border-line-2 bg-elevated px-3 py-2 text-sm text-fg placeholder:text-dim focus:border-route-ask focus:outline-none"
           />
           <button
             type="submit"
-            className="border border-accent-dim bg-accent px-4 font-display text-sm font-bold text-[#05130c] hover:bg-accent-bright"
+            className="border border-accent-dim bg-accent px-4 font-display text-sm font-bold text-ink hover:bg-accent-bright"
           >
             Refine
           </button>

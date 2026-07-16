@@ -15,7 +15,7 @@ export function EvaluationView() {
         <ViewHeading
           tag="lab / quality-benchmark"
           title="Systematic Quality Benchmark"
-          note="12 ground-truth queries · 4 strategies · MRR and Recall@K. The C→D delta isolates the orchestrator agent's real impact."
+          note="The same ground-truth queries run under four strategies (A–D), each enabling one more pipeline layer. Comparing scores isolates what every layer — hybrid fusion, reranking, the agent — actually contributes."
         />
         <button
           type="button"
@@ -36,7 +36,7 @@ export function EvaluationView() {
 
       {status.data?.status === 'running' && (
         <div className="flex items-center gap-3">
-          <Spinner label="benchmarking" />
+          <Spinner label="Benchmarking" />
           <span className="font-mono text-xs text-muted">
             {Math.round(status.data.progress * 100)}% complete
           </span>
@@ -45,7 +45,7 @@ export function EvaluationView() {
 
       {status.data?.status === 'error' && (
         <p className="font-mono text-xs text-route-fallback">
-          benchmark failed: {status.data.detail}
+          Benchmark failed: {status.data.detail}
         </p>
       )}
 
@@ -54,7 +54,7 @@ export function EvaluationView() {
       ) : (
         !running && (
           <p className="border border-line-2 bg-surface p-6 text-center font-mono text-xs text-dim">
-            run the benchmark to compare strategies A–D and reveal the agent's measured
+            Run the benchmark to compare strategies A–D and reveal the agent’s measured
             contribution.
           </p>
         )

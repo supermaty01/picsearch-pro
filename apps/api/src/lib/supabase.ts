@@ -18,3 +18,19 @@ export function createSupabase(env: Env) {
 
 /** Bucket that stores uploaded images (see supabase/migrations/0002_storage.sql). */
 export const STORAGE_BUCKET = 'images';
+
+/**
+ * Awaited PostgREST result, narrowed to what services consume. The generated
+ * client types don't know our schema (no codegen step), so every query result
+ * is asserted to this shape at the call site.
+ */
+export interface DbResult<T> {
+  data: T | null;
+  error: { message: string } | null;
+}
+
+/** Result of a `head: true, count: 'exact'` query (row count only). */
+export interface DbCountResult {
+  count: number | null;
+  error: { message: string } | null;
+}

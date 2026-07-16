@@ -37,11 +37,15 @@ The model MUST call exactly one tool (`tool_choice: "required"`). The tool-call 
 
 ## 3. System prompt (summary — canonical version lives in `apps/api/src/agent/prompt.ts`)
 
-Instructs the model to: classify the query into one of the four routes using the decision table above; prefer `search_direct` when in doubt (cheapest, and the benchmark punishes needless intervention); keep reformulations faithful to intent (no invented details); make sub-queries self-contained; never answer the query itself — only route it. Temperature 0.1, max ~200 output tokens.
+Instructs the model to: apply the four routes as first-match rules (clarify → decompose → reformulate → direct), with few-shot examples per route, so the specialized routes win over the pass-through; `search_direct` is reserved for queries that are already clean one-scene descriptions. Terse 1-3 word queries are reformulated (expanded with synonyms/visual context); reformulations stay faithful to intent (no invented details); sub-queries must be self-contained; the model never answers the query itself — only routes it. Temperature 0.1, max ~256 output tokens.
+
+Hybrid nudge: glm-4.7-flash with reasoning disabled under-triggers `search_decomposed`, so when the query contains a multi-subject connector ("but also", "plus", "as well as"…) the system prompt appends an explicit hint toward rule 2 (`buildSystemPrompt`). The model still makes the final call.
+
+The cross-encoder then scores against the single resolved query (the agent's cleaned intent) rather than the raw input; only decomposed queries rerank against the original, since no single sub-query covers the merged candidate set.
 
 ## 4. Guardrails & budgets
 
-- Decision timeout: 3 s → fallback to `search_direct` (`agent_action = 'agent_fallback'`).
+- Decision timeout: 5 s → fallback to `search_direct` (`agent_action = 'agent_fallback'`). Sized to the measured free-tier tail of glm-4.7-flash: ~1 s pass-through, up to ~4 s when generating a reformulation/clarifying question.
 - Decomposition capped at 3 sub-queries (latency + free-tier budget).
 - One clarification round max: a follow-up to `ask_for_context` is concatenated with the original query and re-routed, but `ask_for_context` is disabled on that second pass.
 - Prompt-injection stance: the query is data, not instructions; the agent's only output channel is a constrained tool call, and its arguments are validated before use.
