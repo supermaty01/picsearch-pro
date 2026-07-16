@@ -23,7 +23,7 @@ import { type z } from 'zod';
  * with the shared Zod schema, so the UI cannot drift from the API contract
  * (NFR-3). Errors are surfaced as `ApiError` carrying the RFC 9457 detail.
  */
-const BASE = '/api/v1';
+const BASE = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1') as string;
 
 export class ApiError extends Error {
   constructor(
