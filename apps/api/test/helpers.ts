@@ -66,6 +66,7 @@ export interface FakeSupabaseConfig {
   upsertResult?: { data: { id: string } | null; error: { message: string } | null };
   selectResult?: { data: unknown[]; error: { message: string } | null };
   bucketResult?: { error: { message: string } | null };
+  removeResult?: { data: unknown[]; error: { message: string } | null };
   rpcResult?: { data: unknown[]; error: { message: string } | null };
   /** Result of `.maybeSingle()` (benchmark run lookup). */
   runRow?: { data: unknown; error: { message: string } | null };
@@ -91,6 +92,9 @@ export function makeFakeSupabase(config: FakeSupabaseConfig = {}): unknown {
     lt: () => builder,
     eq: () => builder,
     like: () => builder,
+    not: () => builder,
+    in: () => builder,
+    delete: () => builder,
     upsert: () => builder,
     insert: () => builder,
     update: () => builder,
@@ -111,6 +115,7 @@ export function makeFakeSupabase(config: FakeSupabaseConfig = {}): unknown {
     storage: {
       from: () => ({
         upload: () => Promise.resolve(config.uploadResult ?? { error: null }),
+        remove: () => Promise.resolve(config.removeResult ?? { data: [], error: null }),
         getPublicUrl: (path: string) => ({
           data: { publicUrl: `https://cdn.test/${path}` },
         }),

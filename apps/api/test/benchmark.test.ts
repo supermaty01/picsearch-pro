@@ -6,7 +6,7 @@ vi.mock('../src/lib/supabase.js', () => ({
   STORAGE_BUCKET: 'images',
 }));
 
-import app from '../src/index.js';
+import { app } from '../src/index.js';
 import { createSupabase } from '../src/lib/supabase.js';
 import { defaultAiRun, makeEnv, makeFakeSupabase } from './helpers.js';
 
@@ -74,4 +74,5 @@ describe('Benchmark endpoints (FR-13, FR-14)', () => {
     if (status.status !== 'done') throw new Error('expected done');
     expect(status.results.strategies[0]?.strategy).toBe('D');
   });
+
 });

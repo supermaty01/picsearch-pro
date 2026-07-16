@@ -6,7 +6,7 @@ vi.mock('../src/lib/supabase.js', () => ({
   STORAGE_BUCKET: 'images',
 }));
 
-import app from '../src/index.js';
+import { app } from '../src/index.js';
 import { createSupabase } from '../src/lib/supabase.js';
 import { candidateRow, makeEnv, makeFakeSupabase } from './helpers.js';
 

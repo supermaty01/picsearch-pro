@@ -7,10 +7,11 @@ import { benchmark } from './routes/benchmark.js';
 import { images } from './routes/images.js';
 import { search } from './routes/search.js';
 import { telemetry } from './routes/telemetry.js';
+import { purgeExpiredUploads } from './services/cleanup.js';
 import { checkHealth } from './services/health.js';
 import { type AppBindings } from './types.js';
 
-const app = new Hono<AppBindings>().basePath('/api/v1');
+export const app = new Hono<AppBindings>().basePath('/api/v1');
 
 /**
  * Correlation id for every request (docs/04): honor an inbound `x-request-id`
@@ -55,4 +56,17 @@ app.route('/search', search);
 app.route('/telemetry', telemetry);
 app.route('/benchmark', benchmark);
 
-export default app;
+/**
+ * Worker entry: HTTP via Hono + the hourly retention cron (wrangler.jsonc
+ * `triggers.crons`) that expires public uploads after 24 h.
+ */
+export default {
+  fetch: app.fetch,
+  scheduled: (_controller: ScheduledController, env: Env, ctx: ExecutionContext) => {
+    ctx.waitUntil(
+      purgeExpiredUploads(env).catch((err: unknown) => {
+        console.error('retention sweep failed', err);
+      }),
+    );
+  },
+};

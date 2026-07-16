@@ -34,6 +34,10 @@ Errors: `413` too large · `415` bad type · `422` vision output failed validati
 after retry · `422 unsafe-content` the moderation check (piggybacked on the vision
 call, `content_rating`) flagged the image as adult/graphic — nothing is stored.
 
+Retention: public uploads expire after 24 h — an hourly Worker cron
+(`services/cleanup.ts`) deletes the storage object and the row (embedding
+included). The `seed/` corpus is permanent.
+
 ### `GET /api/v1/images?limit&cursor`
 
 Gallery listing, newest first, cursor pagination. → `200 { items: ImageSummary[], nextCursor }`
