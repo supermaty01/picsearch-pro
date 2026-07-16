@@ -105,6 +105,17 @@ export function App() {
 
       <footer className="flex flex-wrap items-center justify-between gap-2.5 border-t border-line bg-header px-5 py-4 font-mono text-[11px] text-faint">
         <span>React (Vite) + Tailwind · Cloudflare Pages/Workers · Supabase pgvector</span>
+        <span>
+          Built by{' '}
+          <a
+            href="https://www.linkedin.com/in/mateo-alvarez-lebrum/"
+            target="_blank"
+            rel="noreferrer"
+            className="text-muted underline decoration-line-3 underline-offset-2 transition hover:text-accent"
+          >
+            Mateo Alvarez ↗
+          </a>
+        </span>
         <span>bge-small-en-v1.5 · 384-dim · HNSW + GIN · RRF k=60</span>
       </footer>
     </div>
