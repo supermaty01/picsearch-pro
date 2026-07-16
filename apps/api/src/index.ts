@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 import { type Env } from './env.js';
+import { isOriginAllowed, parseAllowedOrigins } from './lib/cors.js';
 import { renderProblem } from './lib/problem.js';
 import { benchmark } from './routes/benchmark.js';
 import { images } from './routes/images.js';
@@ -26,7 +27,8 @@ app.use('*', async (c, next) => {
 
 /**
  * CORS lockdown (NFR-5). `ALLOWED_ORIGINS` (comma-separated) whitelists the Pages
- * origin(s) in production; unset in local dev reflects any origin for convenience.
+ * origin(s) in production — including their per-commit preview subdomains (see
+ * lib/cors.ts); unset in local dev reflects any origin for convenience.
  */
 app.use(
   '*',
@@ -34,8 +36,7 @@ app.use(
     origin: (origin, c) => {
       const allowed = (c.env as Env).ALLOWED_ORIGINS;
       if (!allowed) return origin;
-      const list = allowed.split(',').map((o) => o.trim());
-      return list.includes(origin) ? origin : null;
+      return isOriginAllowed(origin, parseAllowedOrigins(allowed)) ? origin : null;
     },
     allowMethods: ['GET', 'POST', 'OPTIONS'],
     allowHeaders: ['content-type', 'x-request-id', 'x-seed-key'],

@@ -113,6 +113,9 @@ wrangler secret put ALLOWED_ORIGINS   # https://<project>.pages.dev  (comma-sepa
 
 With `ALLOWED_ORIGINS` set, the Worker rejects cross-origin requests from anywhere
 else (NFR-5). Unset, it reflects any origin (fine for local dev, not for prod).
+A Cloudflare Pages origin in the list implicitly allows its per-commit preview
+deployments (`https://<hash>.<project>.pages.dev`); explicit wildcards like
+`https://*.example.com` are also supported (see `apps/api/src/lib/cors.ts`).
 If you use a same-origin custom domain (step 3, option 2), CORS is moot but setting
 this is still good hygiene.
 
