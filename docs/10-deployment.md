@@ -78,6 +78,17 @@ pnpm --filter @picsearch/web build
 pnpm --filter @picsearch/api exec wrangler pages deploy ../web/dist --project-name picsearch-pro
 ```
 
+### Web env vars: `.env.production` is the source of truth
+
+`VITE_API_BASE_URL` is baked into the bundle at **build time**. With option B the
+build runs on your machine, so env vars configured in the Pages dashboard never
+reach it. The committed [`apps/web/.env.production`](../apps/web/.env.production)
+carries the production API origin (public by definition — it ships in the bundle)
+and Vite gives it priority over the gitignored `.env` in build mode. Result:
+production builds are reproducible on any machine, and your local `.env` only
+affects `pnpm dev`. If the Worker URL ever changes, update `.env.production` and
+redeploy.
+
 ---
 
 ## 3. Point the SPA's `/api` at the Worker
