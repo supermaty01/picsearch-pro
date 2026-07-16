@@ -12,6 +12,10 @@
   "observability": {
     "enabled": true,
   },
+  // Hourly retention sweep: public uploads expire after 24 h (services/cleanup.ts).
+  "triggers": {
+    "crons": ["0 * * * *"],
+  },
   "vars": {
     "ENVIRONMENT": "development",
   },

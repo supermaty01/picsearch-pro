@@ -4,7 +4,9 @@ SUPABASE_SERVICE_ROLE_KEY="service-role-key-here"
 AI_GATEWAY_ID="picsearch-gateway"
 
 # Optional: comma-separated browser origins allowed by CORS (Phase 6).
-# Leave unset in local dev to allow all origins.
+# Leave unset in local dev to allow all origins. A Pages origin implicitly
+# allows its per-commit previews (https://<hash>.<project>.pages.dev);
+# explicit wildcards like https://*.example.com are also supported.
 # ALLOWED_ORIGINS="https://picsearch-pro.pages.dev"
 
 # Optional: shared secret that authorizes deterministic seed/<slug> uploads.

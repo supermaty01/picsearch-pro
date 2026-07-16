@@ -38,6 +38,13 @@
   --color-route-ask: #45c8e0;
   --color-route-fallback: #e07d5a;
 
+  /* Pipeline-stage colors (telemetry waterfalls). Distinct hues so adjacent
+     segments stay readable — an all-green ramp had too little contrast. */
+  --color-stage-agent: #46e08a;
+  --color-stage-embed: #45c8e0;
+  --color-stage-retrieval: #a08bff;
+  --color-stage-rerank: #e0b345;
+
   --font-display: 'Archivo', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
 }

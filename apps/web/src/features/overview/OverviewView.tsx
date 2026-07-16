@@ -44,6 +44,8 @@ export function OverviewView({ onNavigate }: OverviewViewProps) {
         <Evaluation onNavigate={onNavigate} />
       </div>
 
+      <Glossary />
+
       <StackStrip />
     </div>
   );
@@ -206,6 +208,102 @@ function Evaluation({ onNavigate }: OverviewViewProps) {
       >
         Open the Evaluation Lab →
       </button>
+    </section>
+  );
+}
+
+const GLOSSARY: { term: string; definition: string }[] = [
+  {
+    term: 'Embedding',
+    definition:
+      'A text (or image description) converted into a vector of numbers — here 384 of them — where similar meanings land close together. Searching = comparing distances between vectors.',
+  },
+  {
+    term: 'Vector similarity',
+    definition:
+      'How close two embeddings are, measured with cosine distance. "Beach at sunset" and "shore at golden hour" score high even though they share almost no words.',
+  },
+  {
+    term: 'pgvector · HNSW',
+    definition:
+      'The Postgres extension that stores embeddings and searches them. HNSW is its index structure — an approximate-nearest-neighbor graph that makes vector search fast at scale.',
+  },
+  {
+    term: 'Full-text search (FTS)',
+    definition:
+      'Classic keyword matching inside Postgres (tsvector + GIN index). Great at exact terms like brand names or visible text that vector search can blur over.',
+  },
+  {
+    term: 'Hybrid search',
+    definition:
+      'Running vector similarity and full-text search in parallel over the same corpus and merging both rankings — each side catches what the other misses.',
+  },
+  {
+    term: 'RRF (Reciprocal Rank Fusion)',
+    definition:
+      'The merge formula for hybrid search: each result contributes weight / (k + rank) per list it appears in (k=60 here). Rewards agreement between rankers without having to normalize their scores.',
+  },
+  {
+    term: 'top_k / candidates',
+    definition:
+      'How many results a stage keeps. Retrieval returns the top 15 candidates; the reranker narrows them to the final top 5. Bigger k = better recall, more work downstream.',
+  },
+  {
+    term: 'Cross-encoder',
+    definition:
+      'A model that reads the query and a document together and scores their relevance jointly. Far more precise than comparing two independent embeddings (a bi-encoder), but too slow to run over the whole corpus — so it only rescores the shortlist.',
+  },
+  {
+    term: 'Reranking',
+    definition:
+      'The second-pass reordering of retrieval candidates by the cross-encoder. Retrieval optimizes for not missing anything; reranking optimizes for putting the best match first.',
+  },
+  {
+    term: 'Dense context',
+    definition:
+      'The single high-density paragraph built from an image’s structured metadata. It is the only text that gets embedded and searched — the image itself is never compared directly.',
+  },
+  {
+    term: 'Structured metadata',
+    definition:
+      'The JSON a vision model extracts from each image (scene, objects, colors, visible text, keywords), validated against a schema before anything is stored.',
+  },
+  {
+    term: 'Orchestrator agent',
+    definition:
+      'A small LLM that routes each query before retrieval: pass it through, rewrite it, split it into sub-queries, or ask a clarifying question — via function calling with validated arguments.',
+  },
+  {
+    term: 'MRR (Mean Reciprocal Rank)',
+    definition:
+      'Evaluation metric: 1 / position of the first correct result, averaged over queries. 1.0 means the right image always came first; 0.5 means it averaged second place.',
+  },
+  {
+    term: 'Recall@K',
+    definition:
+      'Evaluation metric: the fraction of queries whose correct image appears anywhere in the top K results — did the pipeline find it at all, regardless of position.',
+  },
+  {
+    term: 'Ground truth',
+    definition:
+      'The hand-labeled query → correct-image pairs the evaluation runs against. Without it, "better search" is just an opinion.',
+  },
+];
+
+function Glossary() {
+  return (
+    <section className="border border-line-2 bg-surface" aria-label="Glossary">
+      <div className="border-b border-line px-5 py-3 font-mono text-[11px] text-dim">
+        glossary · the terms this console keeps using
+      </div>
+      <dl className="grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-3">
+        {GLOSSARY.map((entry) => (
+          <div key={entry.term} className="bg-surface p-4">
+            <dt className="font-mono text-[12.5px] font-semibold text-accent">{entry.term}</dt>
+            <dd className="mt-1.5 text-[12.5px] leading-relaxed text-muted">{entry.definition}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }

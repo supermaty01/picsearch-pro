@@ -1,4 +1,4 @@
-import { type ImageMetadata, MODELS } from '@picsearch/shared';
+import { type ImageMetadata, MODELS, type VisionAnalysis } from '@picsearch/shared';
 
 import { type Env } from '../src/env.js';
 
@@ -20,6 +20,9 @@ export const validMetadata: ImageMetadata = {
   keywords: ['beach', 'sunset', 'ocean', 'summer', 'golden hour', 'coast'],
 };
 
+/** The full vision output: persisted metadata + the moderation verdict. */
+export const validVisionAnalysis: VisionAnalysis = { ...validMetadata, content_rating: 'safe' };
+
 /** Minimal fake Env; `AI.run` is stubbed per test. */
 export function makeEnv(aiRun: (model: string, input: unknown) => unknown): Env {
   return {
@@ -38,7 +41,7 @@ export function makeEnv(aiRun: (model: string, input: unknown) => unknown): Env 
  * dispatching on the model id. Individual tests override as needed.
  */
 export function defaultAiRun(model: string): unknown {
-  if (model === MODELS.vision) return { response: JSON.stringify(validMetadata) };
+  if (model === MODELS.vision) return { response: JSON.stringify(validVisionAnalysis) };
   if (model === MODELS.embedding) return { data: [new Array(384).fill(0.01) as number[]] };
   if (model === MODELS.reranker) return { response: [{ id: 0, score: 0.9 }] };
   if (model === MODELS.agent) {
@@ -63,6 +66,7 @@ export interface FakeSupabaseConfig {
   upsertResult?: { data: { id: string } | null; error: { message: string } | null };
   selectResult?: { data: unknown[]; error: { message: string } | null };
   bucketResult?: { error: { message: string } | null };
+  removeResult?: { data: unknown[]; error: { message: string } | null };
   rpcResult?: { data: unknown[]; error: { message: string } | null };
   /** Result of `.maybeSingle()` (benchmark run lookup). */
   runRow?: { data: unknown; error: { message: string } | null };
@@ -86,8 +90,12 @@ export function makeFakeSupabase(config: FakeSupabaseConfig = {}): unknown {
     order: () => builder,
     limit: () => builder,
     lt: () => builder,
+    gt: () => builder,
     eq: () => builder,
     like: () => builder,
+    not: () => builder,
+    in: () => builder,
+    delete: () => builder,
     upsert: () => builder,
     insert: () => builder,
     update: () => builder,
@@ -108,6 +116,7 @@ export function makeFakeSupabase(config: FakeSupabaseConfig = {}): unknown {
     storage: {
       from: () => ({
         upload: () => Promise.resolve(config.uploadResult ?? { error: null }),
+        remove: () => Promise.resolve(config.removeResult ?? { data: [], error: null }),
         getPublicUrl: (path: string) => ({
           data: { publicUrl: `https://cdn.test/${path}` },
         }),

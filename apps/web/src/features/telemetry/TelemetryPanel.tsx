@@ -6,13 +6,7 @@ import { ViewHeading } from '../../components/ViewHeading.js';
 import { AgentDecisionBadge } from '../search/AgentDecisionBadge.js';
 import { listTelemetry } from '../../lib/api.js';
 import { QUERY_KEYS } from '../../lib/queryKeys.js';
-
-const STAGES: { key: keyof TelemetryRecord; label: string; swatch: string; fill: string }[] = [
-  { key: 'agentDecisionMs', label: 'Agent', swatch: 'bg-accent', fill: 'fill-accent' },
-  { key: 'embeddingMs', label: 'Embedding', swatch: 'bg-faint', fill: 'fill-faint' },
-  { key: 'vectorSearchMs', label: 'Retrieval', swatch: 'bg-accent-dim', fill: 'fill-accent-dim' },
-  { key: 'rerankMs', label: 'Rerank', swatch: 'bg-pos', fill: 'fill-pos' },
-];
+import { PIPELINE_STAGES } from './stages.js';
 
 /** Live per-query telemetry with a latency waterfall (FR-11, FR-12). */
 export function TelemetryPanel() {
@@ -31,7 +25,7 @@ export function TelemetryPanel() {
       />
 
       <div className="flex flex-wrap gap-3 font-mono text-[11px] text-dim">
-        {STAGES.map((s) => (
+        {PIPELINE_STAGES.map((s) => (
           <span key={s.label} className="inline-flex items-center gap-1.5">
             <span className={`size-2.5 ${s.swatch}`} aria-hidden="true" />
             {s.label}
@@ -77,7 +71,7 @@ function TelemetryRow({ row }: { row: TelemetryRecord }) {
         role="img"
         aria-label={`Latency breakdown, total ${String(row.executionTimeMs)} ms`}
       >
-        {STAGES.map((s) => {
+        {PIPELINE_STAGES.map((s) => {
           const value = row[s.key];
           const ms = typeof value === 'number' ? value : 0;
           const width = (ms / total) * 100;

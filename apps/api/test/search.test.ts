@@ -6,7 +6,7 @@ vi.mock('../src/lib/supabase.js', () => ({
   STORAGE_BUCKET: 'images',
 }));
 
-import app from '../src/index.js';
+import { app } from '../src/index.js';
 import { createSupabase } from '../src/lib/supabase.js';
 import { candidateRow, makeEnv, makeFakeSupabase } from './helpers.js';
 
@@ -96,6 +96,35 @@ describe('POST /api/v1/search (FR-6..FR-11)', () => {
     expect(body.telemetry.rerankSkipped).toBe(true);
     // RRF order preserved: A (0.4) before B (0.2).
     expect(body.results.map((r) => r.id)).toEqual([ID_A, ID_B]);
+  });
+
+  it('decomposed route reranks each sub-query separately, then interleaves', async () => {
+    // Count reranker invocations: the fix reranks per sub-query (2 calls), not
+    // the merged pool against the combined query (which would be 1 call).
+    let rerankCalls = 0;
+    const aiRun = (model: string): unknown => {
+      if (model === MODELS.agent) {
+        return {
+          tool_calls: [
+            { name: 'search_decomposed', arguments: { subQueries: ['a cat', 'a pig'] } },
+          ],
+          usage: { total_tokens: 10 },
+        };
+      }
+      if (model === MODELS.embedding) return { data: [new Array(384).fill(0.02) as number[]] };
+      if (model === MODELS.reranker) {
+        rerankCalls += 1;
+        return { response: [{ id: 0, score: 0.9 }] };
+      }
+      throw new Error(`unexpected model ${model}`);
+    };
+    const res = await post(makeEnv(aiRun), 'a cat image and a pig image');
+    const body = searchResponseSchema.parse(await res.json());
+    if (body.kind !== 'results') throw new Error(`expected results, got ${body.kind}`);
+    expect(body.agent.action).toBe('decompose');
+    expect(body.agent.resolvedQueries).toEqual(['a cat', 'a pig']);
+    expect(rerankCalls).toBe(2);
+    expect(body.telemetry.rerankSkipped).toBe(false);
   });
 
   it('rejects an invalid body → 400', async () => {

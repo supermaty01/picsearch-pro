@@ -51,6 +51,8 @@ cloud credentials — the tests mock the AI and DB bindings.
      the `hybrid_search` RRF function, indexes, RLS.
    - `supabase/migrations/0002_storage.sql` — the public `images` bucket + read policy.
    - `supabase/migrations/0003_benchmark_runs.sql` — benchmark run persistence.
+   - `supabase/migrations/0004_benchmark_run_heartbeat.sql` — `updated_at` heartbeat
+     so an abandoned run (dead worker) is reaped instead of blocking new runs.
 
    **1a. (Alternative) Supabase CLI:**
 

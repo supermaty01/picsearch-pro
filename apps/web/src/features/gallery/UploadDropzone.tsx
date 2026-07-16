@@ -1,4 +1,4 @@
-import { isAllowedMimeType, UPLOAD_LIMITS } from '@picsearch/shared';
+import { isAllowedMimeType, UPLOAD_LIMITS, USER_UPLOAD_TTL_HOURS } from '@picsearch/shared';
 import { useRef, useState } from 'react';
 
 import { Spinner } from '../../components/Spinner.js';
@@ -77,6 +77,9 @@ export function UploadDropzone() {
           }}
         />
         <p className="font-mono text-[10px] text-dim">JPEG · PNG · WebP · up to 10 MB</p>
+        <p className="font-mono text-[10px] text-dim">
+          Uploads are moderated (no adult content) and auto-deleted after {USER_UPLOAD_TTL_HOURS}h
+        </p>
       </div>
 
       <div aria-live="polite" className="min-h-6 px-4 pb-3 font-mono text-xs">

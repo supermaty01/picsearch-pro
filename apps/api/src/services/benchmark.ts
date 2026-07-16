@@ -22,9 +22,10 @@ import { type Env } from '../env.js';
 import { NotFoundError, RateLimitedError, UpstreamError } from '../lib/problem.js';
 import { createSupabase, type DbCountResult, type DbResult } from '../lib/supabase.js';
 import { routeQuery } from '../agent/orchestrator.js';
+import { mergeCandidates } from '../lib/merge.js';
 import { type Candidate } from './hybrid-search.js';
 import { rerank } from './rerank.js';
-import { rerankQueryFor, retrieve } from './search.js';
+import { rerankResolved, retrieve } from './search.js';
 
 /** Ground truth is bundled and validated once at module load (fail fast). */
 const GROUND_TRUTH = groundTruthSchema.parse(groundTruthJson);
@@ -32,12 +33,28 @@ const GROUND_TRUTH = groundTruthSchema.parse(groundTruthJson);
 /** At most 2 concurrent benchmark runs (docs/04 §Rate limits). */
 const MAX_CONCURRENT_RUNS = 2;
 
+/**
+ * A 'running' row whose heartbeat (`updated_at`) is older than this is treated
+ * as abandoned: its Worker `waitUntil` task died (isolate eviction, budget) and
+ * it will never finish. Such rows must not block new runs, and a client polling
+ * one must be told it failed instead of waiting forever. The heartbeat is bumped
+ * before/after every strategy, so the window only needs to exceed the slowest
+ * single strategy over the ground-truth set (14 queries) with margin.
+ */
+const STALE_RUN_MS = 3 * 60 * 1000;
+
 /** `benchmark_runs.status` values (docs/03). */
 const RUN_STATUS = {
   running: 'running',
   done: 'done',
   error: 'error',
 } as const;
+
+const STALE_DETAIL = 'Run interrupted (worker stopped before completion).';
+
+function staleCutoff(): string {
+  return new Date(Date.now() - STALE_RUN_MS).toISOString();
+}
 
 /**
  * Start a benchmark run (FR-13): reserve a row and return its id. The heavy work
@@ -47,10 +64,14 @@ const RUN_STATUS = {
 export async function startBenchmark(env: Env, strategies: StrategyId[]): Promise<string> {
   const supabase = createSupabase(env);
 
+  // Reap abandoned runs first so a dead run can never permanently block new ones.
+  await sweepStaleRuns(supabase);
+
   const running = (await supabase
     .from('benchmark_runs')
     .select('id', { head: true, count: 'exact' })
-    .eq('status', RUN_STATUS.running)) as DbCountResult;
+    .eq('status', RUN_STATUS.running)
+    .gt('updated_at', staleCutoff())) as DbCountResult;
   if (running.error) throw new UpstreamError(`benchmark check failed: ${running.error.message}`);
   if ((running.count ?? 0) >= MAX_CONCURRENT_RUNS) {
     throw new RateLimitedError('Too many benchmark runs in progress. Try again shortly.');
@@ -78,10 +99,13 @@ export async function runBenchmark(
     const seedMap = await loadSeedMap(env);
     const reports: StrategyReport[] = [];
     for (const [index, strategy] of strategies.entries()) {
+      // Heartbeat before the strategy's long work so an in-progress run is never
+      // mistaken for abandoned (staleCutoff), and after with the new progress.
+      await heartbeat(supabase, runId);
       reports.push(await runStrategy(env, strategy, seedMap));
       await supabase
         .from('benchmark_runs')
-        .update({ progress: (index + 1) / strategies.length })
+        .update({ progress: (index + 1) / strategies.length, updated_at: nowIso() })
         .eq('id', runId);
     }
 
@@ -93,28 +117,55 @@ export async function runBenchmark(
     };
     await supabase
       .from('benchmark_runs')
-      .update({ status: RUN_STATUS.done, progress: 1, report })
+      .update({ status: RUN_STATUS.done, progress: 1, report, updated_at: nowIso() })
       .eq('id', runId);
   } catch (err) {
     const detail = err instanceof Error ? err.message : 'unknown error';
     await supabase
       .from('benchmark_runs')
-      .update({ status: RUN_STATUS.error, detail })
+      .update({ status: RUN_STATUS.error, detail, updated_at: nowIso() })
       .eq('id', runId);
   }
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+/** Bump a run's heartbeat so an active run is never swept as stale. */
+async function heartbeat(
+  supabase: ReturnType<typeof createSupabase>,
+  runId: string,
+): Promise<void> {
+  await supabase.from('benchmark_runs').update({ updated_at: nowIso() }).eq('id', runId);
+}
+
+/**
+ * Mark abandoned runs (status 'running', heartbeat older than STALE_RUN_MS) as
+ * errored. Idempotent and best-effort: keeps the history honest and frees the
+ * concurrency slot so a dead run can never block new ones.
+ */
+async function sweepStaleRuns(supabase: ReturnType<typeof createSupabase>): Promise<void> {
+  const { error } = (await supabase
+    .from('benchmark_runs')
+    .update({ status: RUN_STATUS.error, detail: STALE_DETAIL, updated_at: nowIso() })
+    .eq('status', RUN_STATUS.running)
+    .lt('updated_at', staleCutoff())) as DbResult<unknown>;
+  if (error) throw new UpstreamError(`benchmark sweep failed: ${error.message}`);
 }
 
 export async function getBenchmark(env: Env, runId: string): Promise<BenchmarkStatusResponse> {
   const supabase = createSupabase(env);
   const { data, error } = (await supabase
     .from('benchmark_runs')
-    .select('status, progress, report, detail')
+    .select('status, progress, report, detail, updated_at')
     .eq('id', runId)
     .maybeSingle()) as DbResult<{
     status: string;
     progress: number;
     report: unknown;
     detail: string | null;
+    updated_at: string;
   }>;
   if (error) throw new UpstreamError(`benchmark lookup failed: ${error.message}`);
   if (!data) throw new NotFoundError(`No benchmark run with id ${runId}.`);
@@ -124,6 +175,12 @@ export async function getBenchmark(env: Env, runId: string): Promise<BenchmarkSt
   }
   if (data.status === RUN_STATUS.error) {
     return { status: 'error', detail: data.detail ?? 'Benchmark failed.' };
+  }
+  // A 'running' row with a stale heartbeat is abandoned — its worker died. Tell
+  // the client it failed (so polling stops and the button re-enables) instead of
+  // reporting perpetual progress it will never advance past.
+  if (data.updated_at <= staleCutoff()) {
+    return { status: 'error', detail: STALE_DETAIL };
   }
   return { status: 'running', progress: data.progress };
 }
@@ -176,17 +233,17 @@ async function evaluateStrategy(
   switch (strategy) {
     case 'A': {
       const r = await retrieve(env, [query.query], VECTOR_ONLY_WEIGHTS);
-      candidates = r.candidates.slice(0, RETRIEVAL.resultCount);
+      candidates = mergeCandidates(r.lists).slice(0, RETRIEVAL.resultCount);
       break;
     }
     case 'B': {
       const r = await retrieve(env, [query.query], DEFAULT_WEIGHTS);
-      candidates = r.candidates.slice(0, RETRIEVAL.resultCount);
+      candidates = mergeCandidates(r.lists).slice(0, RETRIEVAL.resultCount);
       break;
     }
     case 'C': {
       const r = await retrieve(env, [query.query], DEFAULT_WEIGHTS);
-      candidates = (await rerank(env, query.query, r.candidates)).results;
+      candidates = (await rerank(env, query.query, mergeCandidates(r.lists))).results;
       break;
     }
     case 'D': {
@@ -194,9 +251,11 @@ async function evaluateStrategy(
       if (agent.decision.kind === 'clarification') {
         clarified = true;
       } else {
+        // Same retrieve → per-sub-query rerank + interleave path as the live
+        // search, so the C→D delta measures the agent's real contribution.
         const r = await retrieve(env, agent.decision.queries, DEFAULT_WEIGHTS);
-        const rerankQuery = rerankQueryFor(query.query, agent.decision.queries);
-        candidates = (await rerank(env, rerankQuery, r.candidates)).results;
+        candidates = (await rerankResolved(env, query.query, agent.decision.queries, r.lists))
+          .results;
       }
       break;
     }

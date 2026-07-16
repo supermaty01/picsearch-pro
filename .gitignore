@@ -9,6 +9,8 @@ dist/
 .env
 .env.*
 !.env.example
+# exception: the web prod config holds only the public API origin (docs/10)
+!apps/web/.env.production
 .dev.vars
 !.dev.vars.example
 

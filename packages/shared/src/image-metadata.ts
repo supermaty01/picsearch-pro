@@ -48,3 +48,22 @@ export const imageMetadataSchema = z.object({
 });
 
 export type ImageMetadata = z.infer<typeof imageMetadataSchema>;
+
+/**
+ * Moderation verdict piggybacked on the vision call (FR-1 hardening): the
+ * gallery is public, so adult (+18) or graphic content must never be indexed.
+ * "unsafe" rejects the upload before anything touches storage or the database.
+ */
+export const contentRatingSchema = z.enum(['safe', 'unsafe']);
+export type ContentRating = z.infer<typeof contentRatingSchema>;
+
+/**
+ * Full vision-model output: the searchable metadata plus the moderation field.
+ * Only `imageMetadataSchema` is persisted — `content_rating` is consumed (and
+ * stripped) by the ingestion pipeline, so rows ingested before moderation
+ * existed still parse on read.
+ */
+export const visionAnalysisSchema = imageMetadataSchema.extend({
+  content_rating: contentRatingSchema,
+});
+export type VisionAnalysis = z.infer<typeof visionAnalysisSchema>;

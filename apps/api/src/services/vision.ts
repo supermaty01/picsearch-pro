@@ -1,4 +1,9 @@
-import { imageMetadataSchema, type ImageMetadata, MODELS } from '@picsearch/shared';
+import {
+  type ContentRating,
+  type ImageMetadata,
+  MODELS,
+  visionAnalysisSchema,
+} from '@picsearch/shared';
 import { z } from 'zod';
 
 import { type Env } from '../env.js';
@@ -49,17 +54,22 @@ Return ONLY a JSON object with exactly these fields:
      snapshot", "low-angle close-up", "aerial view").
   "keywords": string[] — 10-20 varied search terms a user might type to find this image,
      including synonyms, the place, the subject, and the mood.
+  "content_rating": "safe" | "unsafe" — "unsafe" if the image contains nudity, sexual or
+     pornographic content, graphic violence, gore, or any other adult (+18) material;
+     "safe" otherwise. Judge only what is actually visible.
 }
 Output JSON only. No prose, no explanations, no markdown code fences.`;
 
 /** JSON Schema derived from the Zod contract — one source of truth (NFR-3, NFR-7). */
-const METADATA_JSON_SCHEMA = z.toJSONSchema(imageMetadataSchema);
+const METADATA_JSON_SCHEMA = z.toJSONSchema(visionAnalysisSchema);
 
 /** Workers AI returns `{ response: string | object }` for chat/vision models. */
 const aiResponseSchema = z.object({ response: z.unknown() });
 
 interface VisionResult {
   metadata: ImageMetadata;
+  /** Moderation verdict — the ingestion pipeline rejects "unsafe" uploads. */
+  contentRating: ContentRating;
   ms: number;
 }
 
@@ -72,9 +82,9 @@ export async function extractMetadata(
   const dataUrl = `data:${mimeType};base64,${arrayBufferToBase64(imageBytes)}`;
 
   const firstAttempt = await callVision(env, dataUrl, SYSTEM_PROMPT);
-  const firstParse = imageMetadataSchema.safeParse(firstAttempt);
+  const firstParse = visionAnalysisSchema.safeParse(firstAttempt);
   if (firstParse.success) {
-    return { metadata: firstParse.data, ms: Date.now() - start };
+    return toVisionResult(firstParse.data, start);
   }
 
   // One sanctioned retry with the validation error fed back (AGENTS §4).
@@ -83,14 +93,23 @@ export async function extractMetadata(
 Your previous response was invalid. Fix these problems and return corrected JSON only:
 ${formatIssues(firstParse.error)}`;
   const secondAttempt = await callVision(env, dataUrl, retryPrompt);
-  const secondParse = imageMetadataSchema.safeParse(secondAttempt);
+  const secondParse = visionAnalysisSchema.safeParse(secondAttempt);
   if (secondParse.success) {
-    return { metadata: secondParse.data, ms: Date.now() - start };
+    return toVisionResult(secondParse.data, start);
   }
 
   throw new VisionValidationError(
     `Vision model output failed schema validation after one retry: ${formatIssues(secondParse.error)}`,
   );
+}
+
+/** Split the validated output: `content_rating` is a verdict, never stored metadata. */
+function toVisionResult(
+  analysis: z.infer<typeof visionAnalysisSchema>,
+  start: number,
+): VisionResult {
+  const { content_rating, ...metadata } = analysis;
+  return { metadata, contentRating: content_rating, ms: Date.now() - start };
 }
 
 async function callVision(env: Env, dataUrl: string, prompt: string): Promise<unknown> {

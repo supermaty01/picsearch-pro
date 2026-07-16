@@ -6,14 +6,16 @@ import {
 } from '@picsearch/shared';
 
 import { type Env } from '../env.js';
-import { UpstreamError } from '../lib/problem.js';
+import { UnsafeContentError, UpstreamError } from '../lib/problem.js';
 import { createSupabase, type DbResult, STORAGE_BUCKET } from '../lib/supabase.js';
 import { embed } from './embedding.js';
 import { extractMetadata } from './vision.js';
 
 /**
- * Ingestion pipeline (FR-1..FR-5): store object → vision extract → normalize to
- * dense_context → embed → single idempotent row upsert. Idempotency is keyed on
+ * Ingestion pipeline (FR-1..FR-5): vision extract (+ moderation gate) →
+ * normalize to dense_context → store object → embed → single idempotent row
+ * upsert. Vision runs FIRST so content flagged as adult/graphic (the gallery is
+ * public) is rejected before it ever touches storage. Idempotency is keyed on
  * `storage_path` (FR-5): re-ingesting the same path UPDATEs instead of
  * duplicating — the seed script relies on this to be re-runnable.
  */
@@ -34,7 +36,22 @@ export async function ingestImage(env: Env, input: IngestInput): Promise<IngestR
   const ext = MIME_EXTENSION[input.mimeType] ?? 'bin';
   const objectPath = input.storagePath ?? `${crypto.randomUUID()}.${ext}`;
 
-  // 1. Store the object (upsert so re-ingestion overwrites the same path).
+  // 1. Vision extraction (untrusted → validated, FR-2) + moderation gate.
+  const {
+    metadata,
+    contentRating,
+    ms: visionMs,
+  } = await extractMetadata(env, input.bytes, input.mimeType);
+  if (contentRating === 'unsafe') {
+    throw new UnsafeContentError(
+      'The image was flagged as adult or graphic content and cannot be added to the public gallery.',
+    );
+  }
+
+  // 2. Normalize (FR-3).
+  const denseContext = buildDenseContext(metadata);
+
+  // 3. Store the object (upsert so re-ingestion overwrites the same path).
   const upload = await supabase.storage
     .from(STORAGE_BUCKET)
     .upload(objectPath, input.bytes, { contentType: input.mimeType, upsert: true });
@@ -45,10 +62,6 @@ export async function ingestImage(env: Env, input: IngestInput): Promise<IngestR
   const {
     data: { publicUrl },
   } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(objectPath);
-
-  // 2. Vision extraction (untrusted → validated, FR-2) + 3. normalize (FR-3).
-  const { metadata, ms: visionMs } = await extractMetadata(env, input.bytes, input.mimeType);
-  const denseContext = buildDenseContext(metadata);
 
   // 4. Embed dense_context (FR-4).
   const embedStart = Date.now();

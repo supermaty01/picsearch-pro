@@ -23,6 +23,14 @@ export const MIME_EXTENSION: Record<string, string> = {
  */
 export const SEED_STORAGE_PREFIX = 'seed';
 
+/**
+ * Retention window for public user uploads. The gallery is open to everyone,
+ * so anonymous uploads expire: a Worker cron deletes the storage object and
+ * the row (embedding included) after this many hours. Seed images (under
+ * `SEED_STORAGE_PREFIX`) are the curated corpus and never expire.
+ */
+export const USER_UPLOAD_TTL_HOURS = 24;
+
 export function isAllowedMimeType(mime: string): boolean {
   return (UPLOAD_LIMITS.allowedMimeTypes as readonly string[]).includes(mime);
 }

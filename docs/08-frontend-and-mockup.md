@@ -5,9 +5,9 @@
 A visual mockup exists in Claude Design: **`PicSearch Pro.dc.html`**
 (`https://claude.ai/design/p/0e9f7748-b3ab-4bad-9cbc-555f93c81d7a`).
 
-> **Pending:** the exported `.dc.html` file will be added to [`/design`](../design/) in a follow-up session. Until then, this doc defines structure and behavior; visual tokens (colors, spacing, typography) will be extracted from the mockup into the Tailwind `@theme` block in `apps/web/src/index.css` when it lands.
+> **Status:** the export was never committed — the mockup lives in Claude Design (link above) and its visual tokens are already extracted into the Tailwind `@theme` block in `apps/web/src/index.css`. This doc remains the reference for structure and behavior.
 
-**Import checklist when the file arrives:**
+**Import checklist, if the file is ever added:**
 
 1. Place the file at `design/PicSearch-Pro.dc.html` (committed — it's a design source).
 2. Extract design tokens → `@theme` variables (Tailwind v4 CSS-first; do NOT create `tailwind.config.js`).

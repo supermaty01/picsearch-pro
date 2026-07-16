@@ -10,17 +10,18 @@ flowchart TD
     AG -->|ambiguous| ASK[ask_for_context] --> UI1[Clarifying question to user]
     AG -->|noisy / malformed| REF[search_reformulated] --> HS[hybrid_search]
     AG -->|multi-concept| DEC[search_decomposed] --> HS1[hybrid_search q1] & HS2[hybrid_search q2]
-    HS1 & HS2 --> MERGE[merge + dedupe] --> CE
+    HS1 --> CE1[rerank vs q1] --> RR[round-robin interleave] --> UI2
+    HS2 --> CE2[rerank vs q2] --> RR
     AG -->|clear| DIR[search_direct] --> HS
     HS --> CE[cross-encoder rerank] --> UI2[Top 5]
 ```
 
-| Route                 | Trigger                                       | Example                                       | Action                                                                                                |
-| --------------------- | --------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `search_direct`       | Clear, specific                               | "canal with medieval timber-framed houses"    | Pass through unchanged — zero added overhead                                                          |
-| `search_reformulated` | Noisy, typos, vague phrasing but clear intent | "that pic i took in frnace last summr"        | Rewrite into a clean, semantically rich query                                                         |
-| `search_decomposed`   | 2+ independent concepts                       | "a beach sunset but also gothic architecture" | Split into 2–3 sub-queries, each independently retrievable; merge + dedupe (keep max score per image) |
-| `ask_for_context`     | Cannot form a retrievable query               | "something nice from vacation"                | Return a clarifying question; no DB call                                                              |
+| Route                 | Trigger                                       | Example                                       | Action                                                                                                                   |
+| --------------------- | --------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `search_direct`       | Clear, specific                               | "canal with medieval timber-framed houses"    | Pass through unchanged — zero added overhead                                                                             |
+| `search_reformulated` | Noisy, typos, vague phrasing but clear intent | "that pic i took in frnace last summr"        | Rewrite into a clean, semantically rich query                                                                            |
+| `search_decomposed`   | 2+ independent concepts                       | "a beach sunset but also gothic architecture" | Split into 2–3 sub-queries, each independently retrieved AND reranked against its own text, then round-robin interleaved |
+| `ask_for_context`     | Cannot form a retrievable query               | "something nice from vacation"                | Return a clarifying question; no DB call                                                                                 |
 
 ## 2. Tool schemas (function calling)
 
@@ -41,7 +42,7 @@ Instructs the model to: apply the four routes as first-match rules (clarify → 
 
 Hybrid nudge: glm-4.7-flash with reasoning disabled under-triggers `search_decomposed`, so when the query contains a multi-subject connector ("but also", "plus", "as well as"…) the system prompt appends an explicit hint toward rule 2 (`buildSystemPrompt`). The model still makes the final call.
 
-The cross-encoder then scores against the single resolved query (the agent's cleaned intent) rather than the raw input; only decomposed queries rerank against the original, since no single sub-query covers the merged candidate set.
+Reranking is route-aware. For direct/reformulate, the cross-encoder scores the candidate pool against the single resolved query (the agent's cleaned intent) rather than the raw input. For decompose, each sub-query's candidates are reranked against THAT sub-query, then the per-sub-query rankings are round-robin interleaved (rank 1 of q1, rank 1 of q2, rank 2 of q1, …), so every sub-intent is represented near the top. Scoring the merged pool against the combined query instead makes every image a half-match — no single image is "a cat AND a pig" — which collapses the ranking to cross-encoder noise (`rerankResolved` in `services/search.ts`).
 
 ## 4. Guardrails & budgets
 

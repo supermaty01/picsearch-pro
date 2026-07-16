@@ -1,6 +1,7 @@
 import {
   DEFAULT_WEIGHTS,
   MODELS,
+  RETRIEVAL,
   type SearchResponse,
   type SearchResultItem,
   type SearchWeights,
@@ -8,26 +9,31 @@ import {
 
 import { type Env } from '../env.js';
 import { timed } from '../lib/timed.js';
-import { mergeCandidates } from '../lib/merge.js';
+import { interleaveCandidates, mergeCandidates } from '../lib/merge.js';
 import { routeQuery } from '../agent/orchestrator.js';
 import { embed } from './embedding.js';
 import { type Candidate, hybridSearch } from './hybrid-search.js';
-import { rerank } from './rerank.js';
+import { rerank, type RerankOutcome } from './rerank.js';
 import { insertTelemetry } from './telemetry.js';
 
 /** `workers-ai/<short model id>` for telemetry (docs/03). */
 const AGENT_PROVIDER = `workers-ai/${MODELS.agent.split('/').pop() ?? MODELS.agent}`;
 
 export interface RetrieveResult {
-  candidates: Candidate[];
+  /** One candidate list per query, index-aligned with `queries` (RRF order). */
+  lists: Candidate[][];
   embeddingMs: number;
   vectorSearchMs: number;
 }
 
 /**
- * Embed each query and run `hybrid_search`, merging results (FR-8). Shared by the
- * user search path and the benchmark strategies — the ONLY difference between
- * strategies is `weights` and whether rerank runs (docs/06). One code path.
+ * Embed each query and run `hybrid_search` (FR-8). Shared by the user search
+ * path and the benchmark strategies — the ONLY difference between strategies is
+ * `weights` and whether rerank runs (docs/06). One code path.
+ *
+ * Returns the per-query lists (unmerged): the decomposed route reranks each
+ * sub-query against its OWN candidates, so the lists must survive to the rerank
+ * stage. Single-query callers merge with `mergeCandidates([...])`.
  *
  * Sub-queries run concurrently (at most `RETRIEVAL.maxSubQueries`), so a
  * decomposed query costs roughly one retrieval round-trip, not three. The
@@ -49,7 +55,7 @@ export async function retrieve(
   );
 
   return {
-    candidates: mergeCandidates(perQuery.map((r) => r.list)),
+    lists: perQuery.map((r) => r.list),
     embeddingMs: perQuery.reduce((sum, r) => sum + r.embeddingMs, 0),
     vectorSearchMs: perQuery.reduce((sum, r) => sum + r.vectorSearchMs, 0),
   };
@@ -61,14 +67,41 @@ export interface SearchOptions {
 }
 
 /**
- * The text the cross-encoder scores against. A single resolved query (direct or
- * reformulated) is the cleaned statement of intent — scoring the raw query
- * instead would undo the agent's typo/slang/terseness fixes at the rerank
- * stage. Decomposed queries diverge from each other, so the original query is
- * the only text that covers the merged candidate set.
+ * Rerank retrieved candidates, branching on the agent route (FR-9):
+ *
+ * - Single resolved query (direct / reformulate): merge the pool and score it
+ *   against the agent's cleaned intent — scoring the raw query would undo the
+ *   agent's typo/slang/terseness fixes at the rerank stage.
+ * - Decomposed query (2–3 sub-queries): rerank each sub-query's OWN candidates
+ *   against that sub-query, then round-robin interleave so every sub-intent is
+ *   represented near the top. Scoring the merged pool against the combined query
+ *   instead makes every image a half-match ("a cat AND a pig" fits neither the
+ *   cat nor the pig), which collapses the ranking to noise.
+ *
+ * `skipped` is true only when the reranker degraded for EVERY sub-query (the
+ * layer as a whole fell back to RRF order); a partial success still reranked.
  */
-export function rerankQueryFor(originalQuery: string, resolvedQueries: string[]): string {
-  return resolvedQueries.length === 1 ? (resolvedQueries[0] ?? originalQuery) : originalQuery;
+export async function rerankResolved(
+  env: Env,
+  originalQuery: string,
+  resolvedQueries: string[],
+  lists: Candidate[][],
+): Promise<RerankOutcome> {
+  if (resolvedQueries.length <= 1) {
+    const query = resolvedQueries[0] ?? originalQuery;
+    return rerank(env, query, mergeCandidates(lists));
+  }
+
+  const outcomes = await Promise.all(
+    lists.map((list, i) => rerank(env, resolvedQueries[i] ?? originalQuery, list)),
+  );
+  return {
+    results: interleaveCandidates(
+      outcomes.map((o) => o.results),
+      RETRIEVAL.resultCount,
+    ),
+    skipped: outcomes.every((o) => o.skipped),
+  };
 }
 
 /**
@@ -108,10 +141,8 @@ export async function runSearch(
   }
 
   const resolvedQueries = agent.decision.queries;
-  const { candidates, embeddingMs, vectorSearchMs } = await retrieve(env, resolvedQueries);
-  const reranked = await timed(() =>
-    rerank(env, rerankQueryFor(query, resolvedQueries), candidates),
-  );
+  const { lists, embeddingMs, vectorSearchMs } = await retrieve(env, resolvedQueries);
+  const reranked = await timed(() => rerankResolved(env, query, resolvedQueries, lists));
 
   const results: SearchResultItem[] = reranked.value.results.map((c) => ({
     id: c.id,

@@ -34,6 +34,12 @@ export function EvaluationView() {
         <p className="font-mono text-xs text-route-fallback">{start.error.message}</p>
       )}
 
+      {status.error instanceof ApiError && (
+        <p className="font-mono text-xs text-route-fallback">
+          Could not read the benchmark status: {status.error.message}
+        </p>
+      )}
+
       {status.data?.status === 'running' && (
         <div className="flex items-center gap-3">
           <Spinner label="Benchmarking" />

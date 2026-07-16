@@ -6,8 +6,12 @@ import {
   type SearchTelemetry,
 } from '@picsearch/shared';
 
+import { useState } from 'react';
+
+import { ImageDetailModal } from '../../components/ImageDetailModal.js';
 import { formatScore } from '../../lib/format.js';
 import { MetadataInspector } from '../gallery/MetadataInspector.js';
+import { PIPELINE_STAGES } from '../telemetry/stages.js';
 import { ClarificationPrompt } from './ClarificationPrompt.js';
 import { ROUTE_STYLES } from './routeStyles.js';
 
@@ -35,7 +39,7 @@ export function SearchResults({ response, onClarify }: SearchResultsProps) {
             telemetry={response.telemetry}
             subQueryCount={response.agent.resolvedQueries.length}
           />
-          <div className="flex flex-wrap items-start gap-4">
+          <div className="flex flex-wrap items-stretch gap-4">
             <section aria-label="Search results" className="min-w-[320px] flex-[3]">
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm font-bold text-fg-2">
@@ -59,7 +63,9 @@ export function SearchResults({ response, onClarify }: SearchResultsProps) {
                 </ul>
               )}
             </section>
-            <div className="min-w-[280px] flex-1">
+            {/* pt-8 offsets the "Top N" heading row so the rail's bottom lines up
+                with the result grid's bottom. */}
+            <div className="flex min-w-[280px] flex-1 flex-col pt-8">
               <TelemetryRail action={response.agent.action} telemetry={response.telemetry} />
             </div>
           </div>
@@ -174,25 +180,44 @@ interface ResultCardProps {
 }
 
 function ResultCard({ item, rank }: ResultCardProps) {
+  const [expanded, setExpanded] = useState(false);
   return (
-    <li className="overflow-hidden border border-line-2 bg-surface">
+    <li className="overflow-hidden border border-line-2 bg-surface min-h-70">
       <div className="relative">
-        <img
-          src={item.imageUrl}
-          alt={item.metadata.scene_description}
-          loading="lazy"
-          className="aspect-[4/3] w-full object-cover"
-        />
-        <span className="absolute left-0 top-0 bg-accent px-2 py-1 font-mono text-[11px] font-semibold text-ink">
+        <button
+          type="button"
+          aria-label="View image and metadata in detail"
+          onClick={() => {
+            setExpanded(true);
+          }}
+          className="block w-full cursor-zoom-in"
+        >
+          <img
+            src={item.imageUrl}
+            alt={item.metadata.scene_description}
+            loading="lazy"
+            className="aspect-4/3 w-full object-cover"
+          />
+        </button>
+        <span className="pointer-events-none absolute left-0 top-0 bg-accent px-2 py-1 font-mono text-[11px] font-semibold text-ink">
           #{rank}
         </span>
         <span
           title="Cross-encoder relevance (RRF score when rerank is skipped)"
-          className="absolute right-0 top-0 bg-bg px-2 py-1 font-mono text-[11px] font-semibold text-fg-2"
+          className="pointer-events-none absolute right-0 top-0 bg-bg px-2 py-1 font-mono text-[11px] font-semibold text-fg-2"
         >
           {formatScore(item.score)}
         </span>
       </div>
+      {expanded && (
+        <ImageDetailModal
+          imageUrl={item.imageUrl}
+          metadata={item.metadata}
+          onClose={() => {
+            setExpanded(false);
+          }}
+        />
+      )}
       <div className="border-t border-line p-3">
         <p className="line-clamp-2 text-[13px] leading-snug text-fg-2">
           {item.metadata.scene_description}
@@ -204,25 +229,6 @@ function ResultCard({ item, rank }: ResultCardProps) {
   );
 }
 
-interface RailStage {
-  key: keyof SearchTelemetry;
-  label: string;
-  fill: string;
-  swatch: string;
-}
-
-const RAIL_STAGES: RailStage[] = [
-  { key: 'agentDecisionMs', label: 'Agent decision', fill: 'fill-accent', swatch: 'bg-accent' },
-  { key: 'embeddingMs', label: 'Embedding', fill: 'fill-faint', swatch: 'bg-faint' },
-  {
-    key: 'vectorSearchMs',
-    label: 'Vector search',
-    fill: 'fill-accent-dim',
-    swatch: 'bg-accent-dim',
-  },
-  { key: 'rerankMs', label: 'Cross-encoder', fill: 'fill-pos', swatch: 'bg-pos' },
-];
-
 interface TelemetryRailProps {
   action: AgentAction;
   telemetry: SearchTelemetry;
@@ -232,7 +238,7 @@ function TelemetryRail({ action, telemetry }: TelemetryRailProps) {
   const total = Math.max(telemetry.executionTimeMs, 1);
   let x = 0;
   return (
-    <div className="border border-line-2 bg-surface">
+    <div className="flex h-full flex-col border border-line-2 bg-surface min-h-70">
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <span className="font-mono text-[11px] text-dim">telemetry.total</span>
         <span className="text-lg font-bold text-fg-2">
@@ -240,7 +246,7 @@ function TelemetryRail({ action, telemetry }: TelemetryRailProps) {
           <span className="font-mono text-[11px] font-normal text-dim">ms</span>
         </span>
       </div>
-      <div className="p-4">
+      <div className="flex-1 p-4">
         <svg
           viewBox="0 0 100 4"
           preserveAspectRatio="none"
@@ -248,9 +254,9 @@ function TelemetryRail({ action, telemetry }: TelemetryRailProps) {
           role="img"
           aria-label={`Latency breakdown, total ${String(telemetry.executionTimeMs)} ms`}
         >
-          {RAIL_STAGES.map((s) => {
+          {PIPELINE_STAGES.map((s) => {
             const ms = telemetry[s.key];
-            const width = ((typeof ms === 'number' ? ms : 0) / total) * 100;
+            const width = (ms / total) * 100;
             const rect = (
               <rect key={s.label} x={x} y={0} width={width} height={4} className={s.fill} />
             );
@@ -259,13 +265,11 @@ function TelemetryRail({ action, telemetry }: TelemetryRailProps) {
           })}
         </svg>
         <div className="flex flex-col gap-2.5">
-          {RAIL_STAGES.map((s) => (
+          {PIPELINE_STAGES.map((s) => (
             <div key={s.label} className="flex items-center gap-2.5">
               <span className={`size-2.5 ${s.swatch}`} aria-hidden="true" />
               <span className="flex-1 text-[12.5px] text-body">{s.label}</span>
-              <span className="font-mono text-xs text-muted">
-                {typeof telemetry[s.key] === 'number' ? telemetry[s.key] : 0}ms
-              </span>
+              <span className="font-mono text-xs text-muted">{telemetry[s.key]}ms</span>
             </div>
           ))}
         </div>
