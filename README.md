@@ -58,7 +58,6 @@ packages/shared   Zod contracts, model registry, pure domain logic
 supabase/         SQL migrations (schema, indexes, hybrid_search RRF function)
 test-dataset/     Benchmark images + ground-truth queries (Phase 5)
 docs/             Specs: requirements, architecture, data model, API, agent, evaluation
-design/           Claude Design mockup (pending import — docs/08)
 ```
 
 ## Benchmark results
