@@ -32,4 +32,22 @@ export const RETRIEVAL = {
   rrfK: 60,
   /** Max sub-queries the agent may decompose into (ADR-0004). */
   maxSubQueries: 3,
+  /**
+   * Hard cap on the rerank document (`buildRerankContext`) per candidate.
+   * Cross-encoder attention is quadratic in sequence length; the compact
+   * document keeps latency roughly half of scoring the full dense_context
+   * while preserving the discriminative fields (FR-9).
+   */
+  rerankContextChars: 1200,
 } as const;
+
+/** Hybrid-search weight presets. Strategy variants parameterize ONE SQL code path (ADR-0003). */
+export interface SearchWeights {
+  vectorWeight: number;
+  keywordWeight: number;
+}
+
+/** Strategy B–D: balanced vector + keyword fusion. */
+export const DEFAULT_WEIGHTS: SearchWeights = { vectorWeight: 0.5, keywordWeight: 0.5 };
+/** Strategy A (vector only): keyword_weight => 0. */
+export const VECTOR_ONLY_WEIGHTS: SearchWeights = { vectorWeight: 1, keywordWeight: 0 };

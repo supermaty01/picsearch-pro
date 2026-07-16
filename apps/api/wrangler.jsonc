@@ -7,14 +7,14 @@
   // Workers AI binding — vision, embeddings, agent LLM, reranker (docs/adr/0002).
   // Route calls through AI Gateway: env.AI.run(model, input, { gateway: { id: env.AI_GATEWAY_ID } })
   "ai": {
-    "binding": "AI"
+    "binding": "AI",
   },
   "observability": {
-    "enabled": true
+    "enabled": true,
   },
   "vars": {
-    "ENVIRONMENT": "development"
-  }
+    "ENVIRONMENT": "development",
+  },
   // Secrets (NEVER in this file — use `wrangler secret put` / .dev.vars locally):
   //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, AI_GATEWAY_ID
 }

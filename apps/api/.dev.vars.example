@@ -2,3 +2,12 @@
 SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="service-role-key-here"
 AI_GATEWAY_ID="picsearch-gateway"
+
+# Optional: comma-separated browser origins allowed by CORS (Phase 6).
+# Leave unset in local dev to allow all origins.
+# ALLOWED_ORIGINS="https://picsearch-pro.pages.dev"
+
+# Optional: shared secret that authorizes deterministic seed/<slug> uploads.
+# Required to run `pnpm seed`. Generate any random string; set the same value here
+# and (for prod) via `wrangler secret put SEED_KEY`.
+SEED_KEY="dev-seed-key-change-me"

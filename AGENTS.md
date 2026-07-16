@@ -49,7 +49,7 @@ Plus: acceptance criteria of the current phase met (`docs/07-implementation-plan
 - Errors: RFC 9457 problem+json at the API boundary; typed error classes internally; never swallow errors silently.
 - Every pipeline stage is wrapped in the `timed()` telemetry helper; new stages must feed `query_telemetry`.
 - React: function components; server state via TanStack Query only; discriminated unions switched exhaustively (`switch-exhaustiveness-check` is an error); Tailwind utilities only, tokens via `@theme` in `index.css`, **no `tailwind.config.js`**, no inline styles.
-- Comments explain *why*, not *what*. Keep the requirement/ADR references (`FR-x`, `ADR-000x`) in code comments — they are load-bearing documentation.
+- Comments explain _why_, not _what_. Keep the requirement/ADR references (`FR-x`, `ADR-000x`) in code comments — they are load-bearing documentation.
 
 ## 6. Testing policy
 
@@ -78,8 +78,8 @@ Ask the human when: a requirement conflicts with an ADR; a dependency needs to b
 
 ## 10. Package-specific notes
 
-| Package | Notes |
-|---|---|
-| `packages/shared` | No runtime deps except `zod`. Everything exported through `src/index.ts`. Consumed as TS source (`exports: ./src/index.ts`) — no build step. |
-| `apps/api` | Hono routes thin; logic in `src/services/`; agent code isolated in `src/agent/` (prompt, tool schemas, validation ladder). Regenerate binding types with `pnpm cf-typegen` after editing `wrangler.jsonc`. |
-| `apps/web` | Feature folders under `src/features/` (gallery, search, evaluation, telemetry); shared UI in `src/components/`; API client in `src/lib/api.ts` is the only fetch call site. |
+| Package           | Notes                                                                                                                                                                                                      |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/shared` | No runtime deps except `zod`. Everything exported through `src/index.ts`. Consumed as TS source (`exports: ./src/index.ts`) — no build step.                                                               |
+| `apps/api`        | Hono routes thin; logic in `src/services/`; agent code isolated in `src/agent/` (prompt, tool schemas, validation ladder). Regenerate binding types with `pnpm cf-typegen` after editing `wrangler.jsonc`. |
+| `apps/web`        | Feature folders under `src/features/` (gallery, search, evaluation, telemetry); shared UI in `src/components/`; API client in `src/lib/api.ts` is the only fetch call site.                                |

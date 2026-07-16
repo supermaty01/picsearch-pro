@@ -6,36 +6,36 @@ Single source of truth: SQL migrations in [`supabase/migrations/`](../supabase/m
 
 ### `images`
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` PK | `gen_random_uuid()` |
-| `storage_path` | `text` UNIQUE | Object path in the bucket — idempotency key (FR-5) |
-| `image_url` | `text` | Public URL |
-| `structured_metadata` | `jsonb` | Vision model output, validated against `ImageMetadata` before insert |
-| `dense_context` | `text` | Normalized semantic paragraph — the *only* text that gets embedded |
-| `embedding` | `vector(384)` | bge-small-en-v1.5 |
-| `fts_tokens` | `tsvector` GENERATED | english config over `dense_context` + `keywords` |
-| `created_at` | `timestamptz` | UTC default |
+| Column                | Type                 | Notes                                                                |
+| --------------------- | -------------------- | -------------------------------------------------------------------- |
+| `id`                  | `uuid` PK            | `gen_random_uuid()`                                                  |
+| `storage_path`        | `text` UNIQUE        | Object path in the bucket — idempotency key (FR-5)                   |
+| `image_url`           | `text`               | Public URL                                                           |
+| `structured_metadata` | `jsonb`              | Vision model output, validated against `ImageMetadata` before insert |
+| `dense_context`       | `text`               | Normalized semantic paragraph — the _only_ text that gets embedded   |
+| `embedding`           | `vector(384)`        | bge-small-en-v1.5                                                    |
+| `fts_tokens`          | `tsvector` GENERATED | english config over `dense_context` + `keywords`                     |
+| `created_at`          | `timestamptz`        | UTC default                                                          |
 
 Indexes: HNSW `vector_cosine_ops` on `embedding`; GIN on `fts_tokens`.
 
 ### `query_telemetry`
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` PK | |
-| `query_text` | `text` | Raw user query |
-| `agent_action` | `text` CHECK | `direct \| reformulate \| decompose \| ask_context \| agent_fallback` |
-| `resolved_queries` | `jsonb` | The query/queries actually executed |
-| `agent_decision_ms` | `int` | |
-| `embedding_ms` | `int` | |
-| `vector_search_ms` | `int` | hybrid_search round trip |
-| `rerank_ms` | `int` | |
-| `execution_time_ms` | `int` | End-to-end |
-| `tokens_used` | `int` NULL | |
-| `model_provider` | `text` | e.g. `workers-ai/glm-4.7-flash` |
-| `rerank_skipped` | `boolean` | Degradation flag |
-| `created_at` | `timestamptz` | |
+| Column              | Type          | Notes                                                                 |
+| ------------------- | ------------- | --------------------------------------------------------------------- |
+| `id`                | `uuid` PK     |                                                                       |
+| `query_text`        | `text`        | Raw user query                                                        |
+| `agent_action`      | `text` CHECK  | `direct \| reformulate \| decompose \| ask_context \| agent_fallback` |
+| `resolved_queries`  | `jsonb`       | The query/queries actually executed                                   |
+| `agent_decision_ms` | `int`         |                                                                       |
+| `embedding_ms`      | `int`         |                                                                       |
+| `vector_search_ms`  | `int`         | hybrid_search round trip                                              |
+| `rerank_ms`         | `int`         |                                                                       |
+| `execution_time_ms` | `int`         | End-to-end                                                            |
+| `tokens_used`       | `int` NULL    |                                                                       |
+| `model_provider`    | `text`        | e.g. `workers-ai/glm-4.7-flash`                                       |
+| `rerank_skipped`    | `boolean`     | Degradation flag                                                      |
+| `created_at`        | `timestamptz` |                                                                       |
 
 ## 2. Hybrid search function (weighted RRF)
 
@@ -69,7 +69,7 @@ Design points:
 
 ## 4. Storage
 
-Bucket `images`, public read. Server-generated object names: `<uuid>.<ext>`. Upload constraints enforced in the Worker (MIME allow-list JPEG/PNG/WebP, ≤ 10 MB) — never trust client-side checks.
+Bucket `images`, public read, created by `migrations/0002_storage.sql` (bucket + a public-read policy on `storage.objects`; the service-role Worker bypasses RLS for writes). Server-generated object names: `<uuid>.<ext>`. Upload constraints enforced in the Worker (MIME allow-list JPEG/PNG/WebP, ≤ 10 MB) — never trust client-side checks; the bucket's own `file_size_limit`/`allowed_mime_types` are defense in depth.
 
 ## 5. Migration policy
 

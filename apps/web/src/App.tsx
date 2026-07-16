@@ -1,23 +1,112 @@
+import { useState } from 'react';
+
+import { Header, type TabId } from './components/Header.js';
+import { ViewHeading } from './components/ViewHeading.js';
+import { EvaluationView } from './features/evaluation/EvaluationView.js';
+import { GalleryView } from './features/gallery/GalleryView.js';
+import { OverviewView } from './features/overview/OverviewView.js';
+import { SearchBar } from './features/search/SearchBar.js';
+import { SearchProgress } from './features/search/SearchProgress.js';
+import { SearchResults } from './features/search/SearchResults.js';
+import { useSearch } from './features/search/useSearch.js';
+import { TelemetryPanel } from './features/telemetry/TelemetryPanel.js';
+import { ApiError } from './lib/api.js';
+
+const EXAMPLE_QUERIES = [
+  'The glass pyramid at the Louvre',
+  'That polis lambo at the airprt',
+  'A beach sunset but also gothic architecture',
+  'Something nice from vacation',
+];
+
 /**
- * Application shell (Phase 0). Feature views land in later phases:
- * GalleryView (Phase 2/4), SearchResults (Phase 3/4), EvaluationView (Phase 5).
- * Component tree contract: docs/08-frontend-and-mockup.md.
+ * Application shell (docs/08 mockup). Tabbed console: Overview (default),
+ * Search Studio, Gallery, Evaluation Lab, Telemetry — over a dark, grid-lined
+ * canvas.
  */
 export function App() {
+  const [tab, setTab] = useState<TabId>('overview');
+  const searchMutation = useSearch();
+  const [baseQuery, setBaseQuery] = useState('');
+
+  function runSearch(query: string) {
+    setBaseQuery(query);
+    searchMutation.mutate(query);
+  }
+
+  // One clarification round: concatenate the answer with the original query.
+  function clarify(answer: string) {
+    searchMutation.mutate(`${baseQuery} ${answer}`.trim());
+  }
+
+  function clearSearch() {
+    searchMutation.reset();
+    setBaseQuery('');
+  }
+
+  const response = searchMutation.data;
+  const hasSearchState = response !== undefined || searchMutation.isError;
+
   return (
-    <div className="min-h-screen bg-brand-50 font-display text-brand-900">
-      <header className="border-b border-brand-500/20 px-6 py-4">
-        <h1 className="text-xl font-semibold tracking-tight">PicSearch Pro</h1>
-      </header>
-      <main className="mx-auto max-w-4xl px-6 py-16">
-        <p className="text-lg">
-          Image semantic search with hybrid retrieval, an orchestrator agent, cross-encoder
-          reranking — and the metrics to prove every layer earns its place.
-        </p>
-        <p className="mt-4 text-sm opacity-70">
-          Phase 0 scaffold. See <code>docs/07-implementation-plan.md</code> for what ships next.
-        </p>
+    <div className="grid-bg flex min-h-screen flex-col font-display text-body">
+      <Header active={tab} onSelect={setTab} />
+
+      <main className="mx-auto w-full max-w-[1560px] flex-1 px-5 py-6">
+        {tab === 'overview' && <OverviewView onNavigate={setTab} />}
+
+        {tab === 'search' && (
+          <div className="space-y-4">
+            <ViewHeading
+              tag="studio / agentic-console"
+              title="Agentic Retrieval Console"
+              note="Every query is routed by the orchestrator agent before it touches hybrid_search · RRF fusion · cross-encoder rerank"
+            />
+            <SearchBar
+              onSearch={runSearch}
+              pending={searchMutation.isPending}
+              onClear={clearSearch}
+              hasResults={hasSearchState}
+            />
+            {searchMutation.error instanceof ApiError && (
+              <p className="font-mono text-xs text-route-fallback">
+                {searchMutation.error.message}
+              </p>
+            )}
+            {searchMutation.isPending && <SearchProgress query={baseQuery} />}
+            {!searchMutation.isPending && response !== undefined && (
+              <SearchResults response={response} onClarify={clarify} />
+            )}
+            {!searchMutation.isPending && response === undefined && (
+              <div className="border border-line-2 bg-surface p-6">
+                <p className="font-mono text-xs text-dim">Try one of these →</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {EXAMPLE_QUERIES.map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => {
+                        runSearch(q);
+                      }}
+                      className="border border-line-2 bg-elevated px-3 py-2 font-mono text-xs text-body transition hover:border-accent-dim hover:text-fg-2"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'gallery' && <GalleryView />}
+        {tab === 'evaluation' && <EvaluationView />}
+        {tab === 'telemetry' && <TelemetryPanel />}
       </main>
+
+      <footer className="flex flex-wrap items-center justify-between gap-2.5 border-t border-line bg-header px-5 py-4 font-mono text-[11px] text-faint">
+        <span>React (Vite) + Tailwind · Cloudflare Pages/Workers · Supabase pgvector</span>
+        <span>bge-small-en-v1.5 · 384-dim · HNSW + GIN · RRF k=60</span>
+      </footer>
     </div>
   );
 }
