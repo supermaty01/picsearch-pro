@@ -90,6 +90,7 @@ export function makeFakeSupabase(config: FakeSupabaseConfig = {}): unknown {
     order: () => builder,
     limit: () => builder,
     lt: () => builder,
+    gt: () => builder,
     eq: () => builder,
     like: () => builder,
     not: () => builder,
