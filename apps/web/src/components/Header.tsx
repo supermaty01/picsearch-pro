@@ -23,11 +23,15 @@ interface HeaderProps {
   onSelect: (tab: TabId) => void;
 }
 
-/** Brand + primary navigation + live status bar (docs/08 mockup). */
+/**
+ * Brand + primary navigation + live status (docs/08 mockup). On small screens
+ * the nav drops to its own row and scrolls horizontally instead of wrapping
+ * into a ragged grid; brand and status share the top row.
+ */
 export function Header({ active, onSelect }: HeaderProps) {
   return (
     <header className="flex flex-wrap items-stretch border-b border-line bg-header">
-      <div className="flex items-center gap-3 border-r border-line px-5 py-3.5">
+      <div className="flex items-center gap-3 border-r border-line px-4 py-3 md:px-5 md:py-3.5">
         <span className="grid size-8 place-items-center bg-accent text-ink">
           <svg
             width="18"
@@ -52,7 +56,14 @@ export function Header({ active, onSelect }: HeaderProps) {
         </span>
       </div>
 
-      <nav aria-label="Primary" className="flex flex-wrap">
+      <div className="order-1 ml-auto flex md:order-2">
+        <StatusBar />
+      </div>
+
+      <nav
+        aria-label="Primary"
+        className="order-2 flex w-full overflow-x-auto border-t border-line md:order-1 md:w-auto md:border-t-0"
+      >
         {TABS.map((tab) => {
           const selected = tab.id === active;
           return (
@@ -63,7 +74,7 @@ export function Header({ active, onSelect }: HeaderProps) {
               onClick={() => {
                 onSelect(tab.id);
               }}
-              className={`self-stretch border-r border-line px-5 py-3.5 font-display text-sm transition ${
+              className={`self-stretch whitespace-nowrap border-r border-line px-4 py-3 font-display text-sm transition md:px-5 md:py-3.5 ${
                 selected
                   ? 'border-b-2 border-b-accent bg-elevated font-semibold text-fg'
                   : 'font-medium text-muted hover:bg-elevated/50 hover:text-fg-2'
@@ -74,9 +85,6 @@ export function Header({ active, onSelect }: HeaderProps) {
           );
         })}
       </nav>
-
-      <div className="flex-1" />
-      <StatusBar />
     </header>
   );
 }
@@ -102,12 +110,6 @@ function StatusBar() {
       <div className="flex items-center gap-2 border-l border-line px-4">
         <span className={`size-2 ${ok ? 'bg-accent' : 'bg-route-fallback'}`} aria-hidden="true" />
         {status}
-      </div>
-      <div className="hidden items-center border-l border-line px-4 sm:flex">workers-ai</div>
-      <div className="hidden items-center border-l border-line px-3.5 sm:flex">
-        <span className="grid size-7 place-items-center border border-line-3 bg-elevated text-[11px] font-semibold text-body">
-          PS
-        </span>
       </div>
     </div>
   );
