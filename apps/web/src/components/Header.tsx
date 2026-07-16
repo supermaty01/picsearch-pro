@@ -89,6 +89,13 @@ export function Header({ active, onSelect }: HeaderProps) {
   );
 }
 
+const HEALTH_CHECKS: { key: 'db' | 'storage' | 'ai'; label: string }[] = [
+  { key: 'db', label: 'Database' },
+  { key: 'storage', label: 'Storage' },
+  { key: 'ai', label: 'AI inference' },
+];
+
+/** Live status chip; hover/focus reveals the per-dependency health breakdown. */
 function StatusBar() {
   const health = useQuery({
     queryKey: QUERY_KEYS.health,
@@ -104,12 +111,38 @@ function StatusBar() {
         ? 'Operational'
         : 'Degraded';
   const ok = status === 'Operational';
+  const checks = health.data?.checks;
 
   return (
-    <div className="flex items-stretch self-stretch font-mono text-[11px] text-muted">
-      <div className="flex items-center gap-2 border-l border-line px-4">
+    <div className="group relative flex items-stretch self-stretch font-mono text-[11px] text-muted">
+      <button
+        type="button"
+        aria-label={`Service status: ${status}. Show dependency health.`}
+        className="flex cursor-default items-center gap-2 border-l border-line px-4"
+      >
         <span className={`size-2 ${ok ? 'bg-accent' : 'bg-route-fallback'}`} aria-hidden="true" />
         {status}
+      </button>
+      <div className="absolute right-0 top-full z-20 hidden min-w-44 border border-line-2 bg-elevated p-3 shadow-lg group-focus-within:block group-hover:block">
+        <div className="mb-2 text-[10px] uppercase tracking-wide text-dim">health.checks</div>
+        {checks ? (
+          <ul className="space-y-1.5">
+            {HEALTH_CHECKS.map(({ key, label }) => (
+              <li key={key} className="flex items-center gap-2">
+                <span
+                  className={`size-1.5 ${checks[key] ? 'bg-accent' : 'bg-route-fallback'}`}
+                  aria-hidden="true"
+                />
+                <span className="flex-1 text-body">{label}</span>
+                <span className={checks[key] ? 'text-accent' : 'text-route-fallback'}>
+                  {checks[key] ? 'ok' : 'down'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-dim">{health.isError ? 'API unreachable' : 'Checking…'}</p>
+        )}
       </div>
     </div>
   );
